@@ -898,8 +898,8 @@ const BulkDailyTask = async () => {
 // --- 调度器: 每 5 分钟检查一次，若发现某指定时间点未执行则执行一次，并记录到 localStorage ---
 const scheduledCheckerTimer = ref(null)
 const isScheduledRunning = ref(false)
-// 检查间隔：5 分钟
-const CHECK_INTERVAL_MS = 5 * 60 * 1000
+// 检查间隔：1 分钟
+const CHECK_INTERVAL_MS = 1 * 60 * 1000
 // 要保证执行的时间点（24 小时制小时数）
 const SCHEDULE_HOURS = [1, 7, 13, 19]
 // localStorage key（带版本号以便未来迁移）
@@ -953,6 +953,8 @@ const checkAndRunScheduled = async () => {
   try {
     const now = new Date()
     const today = now.toISOString().slice(0, 10)
+
+    console.log(`检查定点任务: ${now}`)
 
     // 收集所有满足: 当前时间 >= 指定时点 && 当天未执行 的时段
     const toRun = SCHEDULE_HOURS.filter(h => {
