@@ -56,6 +56,13 @@ export const selectedRoleInfo = useLocalStorage<any>('selectedRoleInfo', null);
 // 跨标签页连接协调
 const activeConnections = useLocalStorage("activeConnections", {});
 
+// 简单的暂停函数：等待指定秒数后继续（默认 20 秒，单位为秒）
+const waitForSeconds = (seconds = 20) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, Math.max(0, seconds) * 1000)
+  })
+}
+
 /**
  * 重构后的Token管理存储
  * 以名称-token列表形式管理多个游戏角色
@@ -290,7 +297,7 @@ export const useTokenStore = defineStore('tokens', () => {
           const gameToken = gameTokens.value.find(t => t.id === tokenId)
           console.log(gameToken)
           if(gameToken) {
-            console.log('getArrayBuffer', await getArrayBuffer('小鱼'));
+            //console.log('getArrayBuffer', await getArrayBuffer('小鱼'));
             const userToken: ArrayBuffer | null = await getArrayBuffer(gameToken.name)
             console.log('读取到的ArrayBuffer:',gameToken.name, userToken)
             if(userToken) {
@@ -844,6 +851,19 @@ export const useTokenStore = defineStore('tokens', () => {
     }
   }
 
+  // 执行单个游戏指令的封装
+const executeGameCommand = async (tokenId, cmd, params = {}, description = '', timeout = 8000) => {
+  try {
+
+    const result = await sendMessageWithPromise(tokenId, cmd, params, timeout)
+    // 让指令等待一点时间
+    await new Promise(resolve => setTimeout(resolve, 500))
+    return result
+  } catch (error) {
+    throw error
+  }
+}
+
   // 获取当前塔层数
   const getCurrentTowerLevel = () => {
     try {
@@ -1130,6 +1150,125 @@ export const useTokenStore = defineStore('tokens', () => {
     tokenLogger.info('Token Store 初始化完成，连接监控已启动')
   }
 
+  // 等待连接到达指定状态的辅助方法
+  const waitForConnectionStatus = async (tokenId: string, desiredStatus: 'connected' | 'connecting' | 'disconnected' | 'error' = 'connected', opts: { interval?: number; timeout?: number } = {}) => {
+    const interval = opts.interval ?? 500
+    const timeout = opts.timeout ?? 20000
+    const start = Date.now()
+    while (Date.now() - start < timeout) {
+      const st = getWebSocketStatus(tokenId)
+      if (st === desiredStatus) return true
+      await new Promise(resolve => setTimeout(resolve, interval))
+    }
+    return false
+  }
+
+  // 执行一次针对所有token的每日任务（串行）
+  const performBulkDailyTask = async (options: { sleepBetweenTokensSec?: number } = {}) => {
+    const sleepBetween = options.sleepBetweenTokensSec ?? 2
+
+    if (!gameTokens.value || gameTokens.value.length === 0) {
+      tokenLogger.info('performBulkDailyTask: 没有可用的tokens，跳过')
+      return
+    }
+
+    tokenLogger.info('开始执行 BulkDailyTask（App-level）', { count: gameTokens.value.length })
+
+    for (const token of gameTokens.value) {
+      try {
+        tokenLogger.debug('BulkDailyTask: 选择 token', token.id)
+        selectToken(token.id)
+
+        // 等待连接建立（最多20秒）
+        const connected = await waitForConnectionStatus(token.id, 'connected', { timeout: 30000 })
+        if (!connected) {
+          wsLogger.warn(`BulkDailyTask: token 未连接，跳过 [${token.id}]`)
+          continue
+        }
+
+        // 1) 尝试更新角色信息（非阻塞）
+        try {
+          await sendGetRoleInfo(token.id).catch(() => null)
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 获取角色信息失败 [${token.id}]`, e)
+        }
+
+        // 4) 尝试赠送好友金币（如果适用）
+        try {
+          await executeGameCommand(token.id, 'friend_batch', {}, '赠送好友金币')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 赠送好友金币失败 [${token.id}]`, e)
+        }
+
+        // 5) 分享游戏 (任务ID: 2)
+        try {
+          await executeGameCommand(token.id, 'system_mysharecallback',
+                  { isSkipShareCard: true, type: 2 }, '分享游戏')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 分享游戏失败 [${token.id}]`, e)
+        }
+
+        // 6) 福利签到
+        try {
+          await executeGameCommand(token.id, 'system_signinreward', {}, '福利签到')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 福利签到失败 [${token.id}]`, e)
+        }
+
+        // 7) 俱乐部签到
+        try {
+          await executeGameCommand(token.id, 'legion_signin', {}, '俱乐部')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 俱乐部签到失败 [${token.id}]`, e)
+        }
+
+        // 8) 领取每日礼包
+        try {
+          await executeGameCommand(token.id, 'discount_claimreward', {}, '领取每日礼包')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 领取每日礼包失败 [${token.id}]`, e)
+        }
+
+        // 9) 领取每日免费奖励
+        try {
+          await executeGameCommand(token.id, 'collection_claimfreereward', {}, '领取每日免费奖励')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 领取每日免费奖励失败 [${token.id}]`, e)
+        }
+
+        // 9) 领取免费礼包
+        try {
+          await executeGameCommand(token.id, 'card_claimreward', {}, '领取免费礼包')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 领取免费礼包失败 [${token.id}]`, e)
+        }
+
+        // 9) 领取永久卡礼包
+        try {
+          await executeGameCommand(token.id, 'card_claimreward', {cardId: 4003}, '领取永久卡礼包')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 领取永久卡礼包失败 [${token.id}]`, e)
+        }
+
+        // 9) 领取邮件奖励
+        try {
+          await executeGameCommand(token.id, 'mail_claimallattachment', {}, '领取邮件奖励')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 领取邮件奖励失败 [${token.id}]`, e)
+        }
+
+        await waitForSeconds(10);// 等待10秒以确保断开完成
+        // 任务完成后断开连接以节省资源
+        closeWebSocketConnection(token.id)
+
+      } catch (error) {
+        tokenLogger.error('BulkDailyTask 处理 token 失败:', token.id, error)
+      }
+    }
+
+    tokenLogger.info('BulkDailyTask 执行完成')
+  }
+
   return {
     // 状态
     gameTokens,
@@ -1141,6 +1280,9 @@ export const useTokenStore = defineStore('tokens', () => {
     hasTokens,
     selectedToken,
     selectedTokenRoleInfo,
+
+    //日常任务管理
+    performBulkDailyTask,
 
     // Token管理方法
     addToken,
