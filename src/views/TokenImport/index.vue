@@ -850,7 +850,7 @@ const isScheduledRunning = ref(false)
 // 检查间隔：1 分钟
 const CHECK_INTERVAL_MS = 1 * 60 * 1000
 // 要保证执行的时间点（24 小时制小时数）
-const SCHEDULE_HOURS = [1, 7, 13, 19]
+const SCHEDULE_HOURS = [1, 7, 13, 19,23]
 // localStorage key（带版本号以便未来迁移）
 const STORAGE_KEY = 'bulkHourlyRunRecords_v1'
 
@@ -877,7 +877,8 @@ const saveRunRecords = (records) => {
 const hasRun = (dateStr, hour) => {
   const records = loadRunRecords()
   const arr = records[dateStr] || []
-  return arr.includes(hour)
+  if (arr.includes(hour)) return true
+  return false
 }
 
 const markRun = (dateStr, hour) => {
@@ -895,7 +896,7 @@ const markRun = (dateStr, hour) => {
 }
 
 // 检查并执行尚未执行的时段（顺序执行，避免并行）
-const checkAndRunScheduled = async () => {
+  const checkAndRunScheduled = async () => {
   if (isScheduledRunning.value) return
   isScheduledRunning.value = true
 
@@ -905,12 +906,20 @@ const checkAndRunScheduled = async () => {
 
     console.log(`检查定点任务: ${now}`)
 
-    // 收集所有满足: 当前时间 >= 指定时点 && 当天未执行 的时段
-    const toRun = SCHEDULE_HOURS.filter(h => {
+    // 收集所有满足: 当前时间 >= 指定时点 && 当天未执行 的时段（显式遍历，便于调试）
+    const toRun = []
+    const runChecks = []
+    for (const h of SCHEDULE_HOURS) {
       const scheduled = new Date(now)
       scheduled.setHours(h, 0, 0, 0)
-      return now >= scheduled && !hasRun(today, h)
-    })
+      const already = hasRun(today, h)
+      const shouldRun = now >= scheduled && !already
+      runChecks.push({ hour: h, scheduled: scheduled.toISOString(), now: now.toISOString(), already, shouldRun })
+      if (shouldRun) toRun.push(h)
+    }
+
+    // 输出调试信息并返回检查集，便于在不刷新页面时排查问题
+    console.debug('定点任务检查结果', runChecks)
 
     if (toRun.length === 0) return
 

@@ -1163,6 +1163,24 @@ const executeGameCommand = async (tokenId, cmd, params = {}, description = '', t
     return false
   }
 
+    // 检查是否今日可用（简化版本）
+  const isTodayAvailable = (statisticsTime:any) => {
+    if (!statisticsTime) return true
+
+    // 如果有时间戳，检查是否为今天
+    const today = new Date().toDateString()
+    const recordDate = new Date(statisticsTime).toDateString()
+
+    return today !== recordDate
+  }
+
+  // 获取今日BOSS ID
+const getTodayBossId = () => {
+  const DAY_BOSS_MAP = [9904, 9905, 9901, 9902, 9903, 9904, 9905] // 周日~周六
+  const dayOfWeek = new Date().getDay()
+  return DAY_BOSS_MAP[dayOfWeek]
+}
+
   // 执行一次针对所有token的每日任务（串行）
   const performBulkDailyTask = async (options: { sleepBetweenTokensSec?: number } = {}) => {
     const sleepBetween = options.sleepBetweenTokensSec ?? 2
@@ -1185,28 +1203,126 @@ const executeGameCommand = async (tokenId, cmd, params = {}, description = '', t
           wsLogger.warn(`BulkDailyTask: token 未连接，跳过 [${token.id}]`)
           continue
         }
+        var roleInfo = null;
 
         // 1) 尝试更新角色信息（非阻塞）
         try {
-          await sendGetRoleInfo(token.id).catch(() => null)
+          roleInfo= await sendGetRoleInfo(token.id).catch(() => null)
         } catch (e) {
           wsLogger.warn(`BulkDailyTask: 获取角色信息失败 [${token.id}]`, e)
+          //如果角色信息获取失败,跳过该账号
+          return;
         }
 
-        // 4) 尝试赠送好友金币（如果适用）
-        try {
-          await executeGameCommand(token.id, 'friend_batch', {}, '赠送好友金币')
-        } catch (e) {
-          wsLogger.warn(`BulkDailyTask: 赠送好友金币失败 [${token.id}]`, e)
+        // 检查已完成的任务
+        const completedTasks = roleInfo?.role?.dailyTask?.complete ?? {}
+        const isTaskCompleted = (taskId:any) => completedTasks[taskId] === -1
+        const statisticsTime = roleInfo?.role?.statisticsTime ?? {}
+        const statistics = roleInfo?.role?.statistics ?? {}
+
+        // 挂机奖励 (任务ID: 5)
+          // 先加钟4次
+          for (let i = 0; i < 4; i++) {
+            try {
+            await executeGameCommand(token.id, 'system_mysharecallback',
+                { isSkipShareCard: true, type: 2 }, `挂机加钟 ${i + 1}`)
+              } catch (e) {
+                wsLogger.warn(`BulkDailyTask: 加钟失败 [${token.id}]`, e)
+            }
+            }
+      
+          //然后领取5次奖励
+          for (let i = 0; i < 5; i++) {
+          try {
+            await executeGameCommand(token.id, 'system_claimhangupreward', {}, '领取挂机奖励')
+              } catch (e) {
+                wsLogger.warn(`BulkDailyTask: 领取挂机奖励失败 [${token.id}]`, e)
+            }
+            await waitForSeconds(10);
+          }
+          
+        // 4) 尝试赠送好友金币 (任务ID: 3)
+        if (!isTaskCompleted(3)) {
+          try {
+            await executeGameCommand(token.id, 'friend_batch', {}, '赠送好友金币')
+          } catch (e) {
+            wsLogger.warn(`BulkDailyTask: 赠送好友金币失败 [${token.id}]`, e)
+          }
         }
 
         // 5) 分享游戏 (任务ID: 2)
-        try {
-          await executeGameCommand(token.id, 'system_mysharecallback',
-                  { isSkipShareCard: true, type: 2 }, '分享游戏')
-        } catch (e) {
-          wsLogger.warn(`BulkDailyTask: 分享游戏失败 [${token.id}]`, e)
+        if (!isTaskCompleted(2)) {
+          try {
+            await executeGameCommand(token.id, 'system_mysharecallback',
+                    { isSkipShareCard: true, type: 2 }, '分享游戏')
+          } catch (e) {
+            wsLogger.warn(`BulkDailyTask: 分享游戏失败 [${token.id}]`, e)
+          }
         }
+
+        // 招募 (任务ID: 4)
+        if (!isTaskCompleted(4)) {
+          try {
+            await executeGameCommand(token.id, 'hero_recruit',
+            { recruitType: 3, recruitNumber: 1 }, '免费招募')
+              } catch (e) {
+                wsLogger.warn(`BulkDailyTask: 免费招募失败 [${token.id}]`, e)
+          }
+        }
+
+          // 盐罐 (任务ID: 14)
+        if (!isTaskCompleted(14)) {
+          try {
+            await executeGameCommand(token.id, 'bottlehelper_claim',
+            { }, '领取盐罐奖励')
+              } catch (e) {
+                wsLogger.warn(`BulkDailyTask: 领取盐罐奖励失败 [${token.id}]`, e)
+          }
+        }
+
+        // 点金 (任务ID: 6)
+        if (!isTaskCompleted(6) && isTodayAvailable(statisticsTime['buy:gold'])) {
+          try {
+            for (let i = 0; i < 3; i++) {
+            await executeGameCommand(token.id, 'system_buygold',
+                    { buyNum: 1}, `免费点金 ${i + 1}`)
+            }
+          } catch (e) {
+            wsLogger.warn(`BulkDailyTask: 点金失败 [${token.id}]`, e)
+          }
+        }
+
+        // 3. BOSS战斗
+          // 军团BOSS
+          const startOfToday = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()
+          const alreadyLegionBoss = statistics['legion:boss'] ?? 0
+          const remainingLegionBoss = Math.max(2 - alreadyLegionBoss, 0)
+
+          if (remainingLegionBoss > 0) {
+
+            for (let i = 0; i < remainingLegionBoss; i++) {
+              try {
+                for (let i = 0; i < 3; i++) {
+                await executeGameCommand(token.id, 'fight_startlegionboss', {}, `军团BOSS ${i + 1}`, 12000)
+                }
+              } catch (e) {
+                wsLogger.warn(`BulkDailyTask: 军团BOSS失败 [${token.id}]`, e)
+              }
+            }
+          }
+
+          // 每日BOSS
+          const todayBossId = getTodayBossId()
+
+          for (let i = 0; i < 3; i++) {
+            try {
+                for (let i = 0; i < 3; i++) {
+                await executeGameCommand(token.id, 'fight_startboss', { bossId: todayBossId }, `每日BOSS ${i + 1}`, 12000)
+                }
+              } catch (e) {
+                wsLogger.warn(`BulkDailyTask: 军团BOSS失败 [${token.id}]`, e)
+              }
+          }
 
         // 6) 福利签到
         try {
@@ -1256,6 +1372,61 @@ const executeGameCommand = async (tokenId, cmd, params = {}, description = '', t
         } catch (e) {
           wsLogger.warn(`BulkDailyTask: 领取邮件奖励失败 [${token.id}]`, e)
         }
+
+        // 5. 免费活动
+          // 免费钓鱼
+          if (isTodayAvailable(statisticsTime['artifact:normal:lottery:time'])) {
+            for (let i = 0; i < 3; i++) {
+              try {
+                await executeGameCommand(token.id, 'artifact_lottery', { lotteryNumber: 1, newFree: true, type: 1 }, `免费钓鱼 ${i + 1}`)
+              } catch (e) {
+                wsLogger.warn(`BulkDailyTask: 免费钓鱼失败 [${token.id}]`, e)
+              }
+            }
+          }
+        
+          // 灯神免费扫荡
+          const kingdoms = ['魏国', '蜀国', '吴国', '群雄']
+          for (let gid = 1; gid <= 4; gid++) {
+            if (isTodayAvailable(statisticsTime[`genie:daily:free:${gid}`])) {
+              try {
+                await executeGameCommand(token.id, 'genie_sweep', { genieId: gid }, `${kingdoms[gid - 1]}灯神免费扫荡`)
+              } catch (e) {
+                wsLogger.warn(`BulkDailyTask: 灯神免费扫荡失败 [${token.id}]`, e)
+              }
+            }
+          }
+        
+          // 灯神免费扫荡卷
+          for (let i = 0; i < 3; i++) {
+            try {
+                await executeGameCommand(token.id, 'genie_buysweep', {}, `领取免费扫荡卷 ${i + 1}`)
+              } catch (e) {
+                wsLogger.warn(`BulkDailyTask: 灯神免费扫荡卷失败 [${token.id}]`, e)
+              }
+          }
+        
+          // 7. 任务奖励领取
+          for (let taskId = 1; taskId <= 10; taskId++) {
+            try {
+                await executeGameCommand(token.id , 'task_claimdailypoint',
+                        { taskId }, `领取任务奖励${taskId}`, 5000)
+              } catch (e) {
+                wsLogger.warn(`BulkDailyTask: 任务奖励领取失败 [${token.id}]`, e)
+              }
+          }
+            // 日常和周常奖励
+          try {
+              await executeGameCommand(token.id , 'task_claimdailyreward', {}, '领取日常任务奖励')
+            } catch (e) {
+              wsLogger.warn(`BulkDailyTask: 日常奖励领取失败 [${token.id}]`, e)
+            }
+            try {
+              await executeGameCommand(token.id , 'task_claimweekreward', {}, '领取周常任务奖励')
+            } catch (e) {
+              wsLogger.warn(`BulkDailyTask: 周常奖励领取失败 [${token.id}]`, e)
+            }
+
 
         await waitForSeconds(10);// 等待10秒以确保断开完成
         // 任务完成后断开连接以节省资源
