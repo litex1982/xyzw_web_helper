@@ -9,7 +9,7 @@
                 </div>
             </div>
 
-            <div v-if="hasRole" class="role-profile-header" :class="rankInfo.class">
+            <div v-if="hasRole" class="role-profile-header" :class="rankInfo?.class">
                 <div class="role-profile-content">
                     <div class="avatar-container">
                         <img :src="roleAvatar" :alt="roleInfo.name || '角色'" class="role-avatar" @error="handleAvatarError" />
@@ -22,17 +22,22 @@
                         </div>
                     </div>
                     <div class="rank-section">
-                        <div class="rank-icon">{{ rankInfo.icon }}</div>
-                        <div class="rank-title">{{ rankInfo.title }}</div>
+                        <div class="rank-icon">{{ rankInfo?.icon }}</div>
+                        <div class="rank-title">{{ rankInfo?.title }}</div>
                     </div>
                 </div>
             </div>
 
-            <div class="resources" v-if="hasRole">
+            <div class="resources" :class="{ collapsed: !isExpanded }" v-if="hasRole">
                 <div v-for="res in resList" :key="res.label" class="res-item">
                     <span class="label">{{ res.label }}</span>
                     <span class="value">{{ res.value }}</span>
                 </div>
+            </div>
+            <div v-if="hasRole && showExpand" class="resources-toggle">
+                <n-button text @click="isExpanded = !isExpanded">
+                    {{ isExpanded ? "收起" : "展开全部" }}
+                </n-button>
             </div>
             <div v-else class="loading">正在获取角色信息...</div>
         </div>
@@ -52,7 +57,7 @@
                     </div>
                     <button class="close-btn" @click="emit('close')">✕</button>
                 </div>
-                <div v-if="hasRole" class="role-profile-header" :class="rankInfo.class">
+                <div v-if="hasRole" class="role-profile-header" :class="rankInfo?.class">
                     <div class="role-profile-content">
                         <div class="avatar-container">
                             <img :src="roleAvatar" :alt="roleInfo.name || '角色'" class="role-avatar" @error="handleAvatarError" />
@@ -65,8 +70,8 @@
                             </div>
                         </div>
                         <div class="rank-section">
-                            <div class="rank-icon">{{ rankInfo.icon }}</div>
-                            <div class="rank-title">{{ rankInfo.title }}</div>
+                            <div class="rank-icon">{{ rankInfo?.icon }}</div>
+                            <div class="rank-title">{{ rankInfo?.title }}</div>
                         </div>
                     </div>
                     <div class="glow-border" />
@@ -85,6 +90,7 @@ const tokenStore = useTokenStore();
 
 const props = defineProps<{ visible?: boolean; embedded?: boolean }>();
 const emit = defineEmits(["close"]);
+const isExpanded = ref(false);
 
 const wsStatus = computed(() => {
     if (!tokenStore.selectedToken) return "disconnected";
@@ -92,7 +98,7 @@ const wsStatus = computed(() => {
 });
 
 const roleInfo = computed(() => {
-    const gameData = tokenStore.gameData;
+    const gameData = tokenStore.gameData as any;
     const role = gameData?.roleInfo?.role;
     if (!role) return {};
     return {
@@ -170,7 +176,6 @@ const getItemCount = (items: any, id: number): number | null => {
     }
     // 对象结构：{ '1011': 3 } 或 { '1011': { num:3 } }
     const node = (items as any)[String(id)] ?? (items as any)[id];
-    console.log("🚀 ~ getItemCount ~ node:", node);
     if (node == null) {
         // 兼容值对象中含有 itemId/quantity 的结构：{ '2001': { itemId: 2001, quantity: 6821 } } 或 { 'X': { itemId: 2001 } }
         const match = Object.values(items as any).find((v: any) => Number(v?.itemId ?? v?.id) === id);
@@ -183,11 +188,10 @@ const getItemCount = (items: any, id: number): number | null => {
 };
 
 const items = computed(() => {
-    console.log("🚀 ~ items:", items);
     return (roleInfo.value as any).items;
 });
 
-// 参考表：1011 普通鱼竿，1012 金鱼竿；补充：1013 珍珠、1001 招募令、1006 精铁、1023 彩玉、1003 进阶石
+// 参考表：1011 普通鱼竿，1012 金鱼竿；补充：1013 珍珠、1001 招募令、1006 精铁、1023 彩玉、1003 进阶石、1017复活丹
 const normalRodFromItems = computed(() => getItemCount(items.value, 1011));
 const goldRodFromItems = computed(() => getItemCount(items.value, 1012));
 const pearlFromItems = computed(() => getItemCount(items.value, 1013));
@@ -195,6 +199,11 @@ const recruitFromItems = computed(() => getItemCount(items.value, 1001));
 const ironFromItems = computed(() => getItemCount(items.value, 1006));
 const jadeFromItems = computed(() => getItemCount(items.value, 1023));
 const advanceStoneFromItems = computed(() => getItemCount(items.value, 1003));
+const DanFromItems = computed(() => getItemCount(items.value, 1017));
+//10002蓝玉 10003红玉 10101四圣碎片
+const blueJadeFromItems = computed(() => getItemCount(items.value, 10002));
+const redJadeFromItems = computed(() => getItemCount(items.value, 10003));
+const fourSaintFragmentFromItems = computed(() => getItemCount(items.value, 10101));
 
 // 兼容旧字段（fishing.*）作为回退
 const normalRod = computed(() => {
@@ -214,11 +223,17 @@ const resList = computed(() => [
     { label: "普通鱼竿", value: display(normalRod.value as any) },
     { label: "金鱼竿", value: display(goldRod.value as any) },
     { label: "珍珠", value: display(pearlFromItems.value as any) },
+    { label: "复活丹", value: display(DanFromItems.value as any) },
     { label: "招募令", value: display(recruitFromItems.value as any) },
     { label: "精铁", value: display(ironFromItems.value as any) },
     { label: "彩玉", value: display(jadeFromItems.value as any) },
     { label: "进阶石", value: display(advanceStoneFromItems.value as any) },
+    { label: "蓝玉", value: display(blueJadeFromItems.value as any) },
+    { label: "红玉", value: display(redJadeFromItems.value as any) },
+    { label: "四圣碎片", value: display(fourSaintFragmentFromItems.value as any) },
 ]);
+
+const showExpand = computed(() => resList.value.length > 6);
 
 const initializeAvatar = () => {
     if (roleInfo.value && (roleInfo.value as any).headImg) {
@@ -227,7 +242,7 @@ const initializeAvatar = () => {
         if (!selectedDefaultAvatar.value) {
             const key = (roleInfo.value as any).roleId || (roleInfo.value as any).name || "default";
             const hash = Array.from(String(key)).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-            selectedDefaultAvatar.value = defaultAvatars[hash % defaultAvatars.length];
+            selectedDefaultAvatar.value = defaultAvatars[hash % defaultAvatars.length]!;
         }
         roleAvatar.value = selectedDefaultAvatar.value;
     }
@@ -236,7 +251,7 @@ const initializeAvatar = () => {
 const handleAvatarError = () => {
     if (!selectedDefaultAvatar.value) {
         const idx = Math.floor(Math.random() * defaultAvatars.length);
-        selectedDefaultAvatar.value = defaultAvatars[idx];
+        selectedDefaultAvatar.value = defaultAvatars[idx] || defaultAvatars[0]!;
     }
     roleAvatar.value = selectedDefaultAvatar.value;
 };
@@ -286,7 +301,6 @@ watch(() => roleInfo.value, initializeAvatar, { deep: true });
 .identity-card {
     position: fixed;
     top: 0;
-    right: 16px;
     width: 360px;
     background: var(--bg-primary);
     border-radius: var(--border-radius-xl);
@@ -429,6 +443,24 @@ watch(() => roleInfo.value, initializeAvatar, { deep: true });
     font-weight: var(--font-weight-semibold);
 }
 
+@media (max-width: 768px) {
+    .card-header {
+        justify-content: center;
+        text-align: center;
+    }
+
+    .role-profile-content {
+        justify-content: center;
+        flex-wrap: wrap;
+        text-align: center;
+    }
+
+    .rank-section {
+        margin-left: 0;
+        justify-content: center;
+    }
+}
+
 .glow-border {
     position: absolute;
     inset: 0;
@@ -496,6 +528,12 @@ watch(() => roleInfo.value, initializeAvatar, { deep: true });
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 8px;
     margin-top: 10px;
+    --res-item-height: 44px;
+}
+
+.resources.collapsed {
+    max-height: calc((var(--res-item-height) + 8px) * 2 + 8px);
+    overflow: hidden;
 }
 
 .res-item {
@@ -503,9 +541,17 @@ watch(() => roleInfo.value, initializeAvatar, { deep: true });
     border: 1px solid var(--border-light);
     border-radius: 10px;
     padding: 8px 10px;
+    min-height: var(--res-item-height);
     display: flex;
     align-items: center;
     justify-content: space-between;
+}
+
+.resources-toggle {
+    margin-top: var(--spacing-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
 }
 
 .res-item .label {

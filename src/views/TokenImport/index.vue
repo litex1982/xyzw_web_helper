@@ -180,6 +180,7 @@
           <i class="mdi:bed-empty"></i>
         </template>
         还没有导入任何Token
+        <a-button type="link" @click="openshowImportForm">打开Tokeng管理</a-button>
       </a-empty>
     </div>
 
@@ -319,6 +320,12 @@ const tasks = ref([
   { id: 13, name: '进行1场竞技场战斗', completed: false, loading: false },
   { id: 14, name: '收获1个任意盐罐', completed: false, loading: false }
 ])
+/**
+ * 手动打开Token管理卡片
+ */
+const openshowImportForm = ()=>{
+  showImportForm.value = true
+}
 
 // 刷新Token
 const refreshToken = async (token) => {
@@ -1376,6 +1383,10 @@ onUnmounted(() => {
 .header-actions {
   display: flex;
   gap: var(--spacing-md);
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  flex-wrap: nowrap;
 }
 
 .tokens-grid {
