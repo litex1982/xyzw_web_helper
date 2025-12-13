@@ -902,7 +902,8 @@ const markRun = (dateStr, hour) => {
 
   try {
     const now = new Date()
-    const today = now.toISOString().slice(0, 10)
+    // 使用本地日期（YYYY-MM-DD），避免使用 UTC 日期导致跨时区偏差
+    const today = now.toLocaleDateString('en-CA')
 
     console.log(`检查定点任务: ${now}`)
 
