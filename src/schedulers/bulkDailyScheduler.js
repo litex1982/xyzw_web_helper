@@ -94,7 +94,7 @@ const releaseLock = () => {
 const checkAndRunDaily = async () => {
   const tokenStore = useTokenStore()
   const now = new Date()
-  const scheduledHour = 14
+  const scheduledHour = 9
   const scheduledMinute = 0
   const scheduledTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), scheduledHour, scheduledMinute, 0, 0)
 
