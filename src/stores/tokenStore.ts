@@ -1310,13 +1310,17 @@ const getTodayBossId = () => {
         }
 
         // 3. BOSS战斗
-          // 军团BOSS
-          const startOfToday = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()
-          const alreadyLegionBoss = statistics['legion:boss'] ?? 0
-          const remainingLegionBoss = Math.max(2 - alreadyLegionBoss, 0)
+          // 俱乐部BOSS战斗
+        let alreadyLegionBoss = statistics['legion:boss'] ?? 0
 
-          if (remainingLegionBoss > 0) {
+        // 如果上次挑战时间不是今天，说明今天还没打过，视为0次
+        if (isTodayAvailable(statisticsTime['legion:boss'])) {
+          alreadyLegionBoss = 0
+        }
 
+        const remainingLegionBoss = Math.max(2 - alreadyLegionBoss, 0)
+
+        if (remainingLegionBoss > 0) {
             for (let i = 0; i < remainingLegionBoss; i++) {
               try {
                 for (let i = 0; i < 3; i++) {
@@ -1388,6 +1392,18 @@ const getTodayBossId = () => {
           await executeGameCommand(token.id, 'mail_claimallattachment', {}, '领取邮件奖励')
         } catch (e) {
           wsLogger.warn(`BulkDailyTask: 领取邮件奖励失败 [${token.id}]`, e)
+        }
+
+          // 珍宝阁免费礼包
+        try {
+          await executeGameCommand(token.id, 'collection_goodslist', {}, '开始领取珍宝阁礼包')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 领取珍宝阁礼包失败 [${token.id}]`, e)
+        }
+        try {
+          await executeGameCommand(token.id, 'collection_claimfreereward', {}, '领取珍宝阁免费礼包')
+        } catch (e) {
+          wsLogger.warn(`BulkDailyTask: 领取珍宝阁免费礼包失败 [${token.id}]`, e)
         }
 
         // 5. 免费活动
