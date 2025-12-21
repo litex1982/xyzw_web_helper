@@ -384,7 +384,7 @@ const isTodayAvailable = (statisticsTime) => {
 
   // 如果有时间戳，检查是否为今天
   const today = new Date().toDateString()
-  const recordDate = new Date(statisticsTime).toDateString()
+  const recordDate = new Date(statisticsTime*1000).toDateString()
 
   return today !== recordDate
 }

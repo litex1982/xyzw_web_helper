@@ -1186,7 +1186,8 @@ const executeGameCommand = async (tokenId, cmd, params = {}, description = '', t
 
     // 如果有时间戳，检查是否为今天
     const today = new Date().toDateString()
-    const recordDate = new Date(statisticsTime).toDateString()
+    //系统返回得时间戳是秒，要转换成毫秒
+    const recordDate = new Date(statisticsTime*1000).toDateString()
 
     return today !== recordDate
   }
@@ -1337,9 +1338,7 @@ const getTodayBossId = () => {
 
           for (let i = 0; i < 3; i++) {
             try {
-                for (let i = 0; i < 3; i++) {
                 await executeGameCommand(token.id, 'fight_startboss', { bossId: todayBossId }, `每日BOSS ${i + 1}`, 12000)
-                }
               } catch (e) {
                 wsLogger.warn(`BulkDailyTask: 军团BOSS失败 [${token.id}]`, e)
               }
@@ -1408,7 +1407,7 @@ const getTodayBossId = () => {
 
         // 5. 免费活动
           // 免费钓鱼
-          if (isTodayAvailable(statisticsTime['artifact:normal:lottery:time'])) {
+          if (isTodayAvailable(statisticsTime['artifact:normal:lottery:time'])&&isTodayAvailable(statisticsTime['ar:normal:lo:cnt'])) {
             for (let i = 0; i < 3; i++) {
               try {
                 await executeGameCommand(token.id, 'artifact_lottery', { lotteryNumber: 1, newFree: true, type: 1 }, `免费钓鱼 ${i + 1}`)
