@@ -1192,6 +1192,30 @@ const executeGameCommand = async (tokenId, cmd, params = {}, description = '', t
     return today !== recordDate
   }
 
+  const loadDailyTaskSettings = (roleId:any) => {
+    const defaultSettings = {
+    arenaFormation: 1,
+    bossFormation: 1,
+    bossTimes: 2,
+    claimBottle: true,
+    payRecruit: true,
+    openBox: true,
+    arenaEnable: true,
+    claimHangUp: true,
+    claimEmail: true,
+    blackMarketPurchase: true
+  }
+  try {
+    const raw = localStorage.getItem(`daily-settings:${roleId}`)
+    const savedSetting=raw ? JSON.parse(raw) : null
+    if (savedSetting) Object.assign(defaultSettings, savedSetting)
+    return defaultSettings;
+  } catch (error) {
+    console.error('Failed to load settings:', error)
+    return defaultSettings
+  }
+}
+
   // 获取今日BOSS ID
 const getTodayBossId = () => {
   const DAY_BOSS_MAP = [9904, 9905, 9901, 9902, 9903, 9904, 9905] // 周日~周六
@@ -1237,6 +1261,7 @@ const getTodayBossId = () => {
         const isTaskCompleted = (taskId:any) => completedTasks[taskId] === -1
         const statisticsTime = roleInfo?.role?.statisticsTime ?? {}
         const statistics = roleInfo?.role?.statistics ?? {}
+        const settings = loadDailyTaskSettings(token.id)
 
         // 挂机奖励 (任务ID: 5)
           // 先加钟4次
@@ -1289,7 +1314,7 @@ const getTodayBossId = () => {
         }
 
           // 盐罐 (任务ID: 14)
-        if (!isTaskCompleted(14)) {
+        if (!isTaskCompleted(14) && settings.claimBottle) {
           try {
             await executeGameCommand(token.id, 'bottlehelper_claim',
             { }, '领取盐罐奖励')
@@ -1312,6 +1337,7 @@ const getTodayBossId = () => {
 
         // 3. BOSS战斗
           // 俱乐部BOSS战斗
+          if (settings.bossTimes > 0) {
         let alreadyLegionBoss = statistics['legion:boss'] ?? 0
 
         // 如果上次挑战时间不是今天，说明今天还没打过，视为0次
@@ -1319,7 +1345,7 @@ const getTodayBossId = () => {
           alreadyLegionBoss = 0
         }
 
-        const remainingLegionBoss = Math.max(2 - alreadyLegionBoss, 0)
+        const remainingLegionBoss = Math.max(settings.bossTimes - alreadyLegionBoss, 0)
 
         if (remainingLegionBoss > 0) {
             for (let i = 0; i < remainingLegionBoss; i++) {
@@ -1332,6 +1358,7 @@ const getTodayBossId = () => {
               }
             }
           }
+        }
 
           // 每日BOSS
           const todayBossId = getTodayBossId()
