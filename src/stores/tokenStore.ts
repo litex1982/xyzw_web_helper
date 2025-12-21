@@ -1237,13 +1237,21 @@ const getTodayBossId = () => {
     for (const token of gameTokens.value) {
       try {
         tokenLogger.debug('BulkDailyTask: 选择 token', token.id)
-        selectToken(token.id)
-
-        // 等待连接建立（最多20秒）
+        let connectionRetry=5
+        while(connectionRetry>0){
+          selectToken(token.id)
+          // 等待连接建立（最多20秒）
+          const connected = await waitForConnectionStatus(token.id, 'connected', { timeout: 30000 })
+          if (connected) {
+            connectionRetry=0
+          }else{
+           connectionRetry=connectionRetry-1
+          }
+        }
         const connected = await waitForConnectionStatus(token.id, 'connected', { timeout: 30000 })
-        if (!connected) {
-          wsLogger.warn(`BulkDailyTask: token 未连接，跳过 [${token.id}]`)
-          continue
+          if (!connected) {
+            wsLogger.warn(`BulkDailyTask: token 未连接，跳过 [${token.id}]`)
+            continue
         }
         var roleInfo = null;
 
