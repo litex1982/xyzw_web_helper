@@ -1358,11 +1358,9 @@ const getTodayBossId = () => {
         if (remainingLegionBoss > 0) {
             for (let i = 0; i < remainingLegionBoss; i++) {
               try {
-                for (let i = 0; i < 3; i++) {
                 await executeGameCommand(token.id, 'fight_startlegionboss', {}, `军团BOSS ${i + 1}`, 12000)
-                }
               } catch (e) {
-                wsLogger.warn(`BulkDailyTask: 军团BOSS失败 [${token.id}]`, e)
+                wsLogger.warn(`BulkDailyTask: 俱乐部BOSS战斗失败 [${token.id}]`, e)
               }
             }
           }
