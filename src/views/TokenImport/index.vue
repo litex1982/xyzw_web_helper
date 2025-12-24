@@ -830,7 +830,7 @@ const processTokensForHourlyTask = async (token) => {
     await waitForSeconds(2);
     await claimHangUpReward();
     // await performDailyTasksForSelectedToken() // 必须返回 Promise
-    await waitForSeconds(10);// 等待10秒以确保断开完成
+    await waitForSeconds(5);// 等待10秒以确保断开完成
     // 任务完成后断开连接以节省资源
     tokenStore.closeWebSocketConnection(token.id)
 
@@ -906,7 +906,7 @@ const BulkHourlyTask = async () => {
       //return
     }
 
-    await waitForSeconds(10);// 等待10秒防止账号切换过快
+    await waitForSeconds(5);// 等待5秒防止账号切换过快
   }
 
   message.success('批量日常处理完成（已串行执行）')
