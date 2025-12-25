@@ -1,4 +1,5 @@
 import { useTokenStore } from '@/stores/tokenStore'
+import { performBulkDailyTask } from '@/tasks/taskRunner'
 
 const RUN_RECORD_KEY = 'bulkDailyRunRecords_v1'
 const LOCK_KEY = 'bulkDailyScheduler_lock'
@@ -108,15 +109,15 @@ const checkAndRunDaily = async () => {
   const locked = tryAcquireLock()
   if (!locked) return
 
-  try {
-    // 执行store中定义的任务
-    await tokenStore.performBulkDailyTask({ sleepBetweenTokensSec: 2 })
-    recordRunForToday('14:00')
-  } catch (e) {
-    console.error('执行 BulkDailyTask 失败', e)
-  } finally {
-    releaseLock()
-  }
+    try {
+      // 执行 task runner 中定义的任务
+      await performBulkDailyTask({ sleepBetweenTokensSec: 2 })
+      recordRunForToday('14:00')
+    } catch (e) {
+      console.error('执行 BulkDailyTask 失败', e)
+    } finally {
+      releaseLock()
+    }
 }
 
 export const startScheduledBulkDaily = (immediate = false) => {
