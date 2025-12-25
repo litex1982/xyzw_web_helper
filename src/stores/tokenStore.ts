@@ -1253,6 +1253,9 @@ const getTodayBossId = () => {
             wsLogger.warn(`BulkDailyTask: token 未连接，跳过 [${token.id}]`)
             continue
         }
+
+        tokenLogger.debug('BulkDailyTask: 开始执行任务', token.name)
+
         var roleInfo = null;
 
         // 1) 尝试更新角色信息（非阻塞）
@@ -1470,6 +1473,15 @@ const getTodayBossId = () => {
                 wsLogger.warn(`BulkDailyTask: 灯神免费扫荡卷失败 [${token.id}]`, e)
               }
           }
+
+          // 6. 黑市
+          if (!isTaskCompleted(12) && settings.blackMarketPurchase) {
+            try {
+              await executeGameCommand(token.id, 'store_purchase', { goodsId: 1 }, '黑市购买1次物品')
+            } catch (e) {
+              wsLogger.warn(`BulkDailyTask: 黑市购买1次物品 [${token.id}]`, e)
+            }
+          }
         
           // 7. 任务奖励领取
           for (let taskId = 1; taskId <= 10; taskId++) {
@@ -1546,6 +1558,7 @@ const getTodayBossId = () => {
     sendClaimDailyReward,
     sendGetTeamInfo,
     sendGameMessage,
+    waitForConnectionStatus,
 
     // 工具方法
     exportTokens,

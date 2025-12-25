@@ -298,6 +298,7 @@ import {
 import { NIcon, useDialog, useMessage } from 'naive-ui'
 import { h, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { startScheduledBulkHourly, stopScheduledBulkHourly, BulkHourlyTask } from '@/schedulers/bulkHourlyScheduler'
 
 // 接收路由参数
 const props = defineProps({
@@ -705,7 +706,7 @@ const handleBulkAction = (key) => {
       clearAllTokens()
       break
     case 'BulkDaily':
-      BulkHourlyTask()
+      BulkHourlyTask(message)
       break
   }
 }
@@ -779,259 +780,7 @@ const clearAllTokens = () => {
   })
 }
 
-// 简单的暂停函数：等待指定秒数后继续（默认 20 秒，单位为秒）
-const waitForSeconds = (seconds = 20) => {
-  return new Promise((resolve) => {
-    setTimeout(resolve, Math.max(0, seconds) * 1000)
-  })
-}
-
-
-// 等待某个 token 的连接状态变更到期望状态（轮询），超时则 reject
-const waitForConnectionStatus = (tokenId, desiredStatus = 'connected', { interval = 500, timeout = 15000 } = {}) => {
-  return new Promise((resolve, reject) => {
-    const start = Date.now()
-
-    const check = () => {
-      const status = getConnectionStatus(tokenId)
-      if (status === desiredStatus) return resolve(status)
-      if (Date.now() - start >= timeout) return reject(new Error(`等待状态 "${desiredStatus}" 超时 (${timeout}ms)`))
-      setTimeout(check, interval)
-    }
-
-    check()
-  })
-}
-
-// 对单个 token 串行处理：选择 -> 等待连接 -> 执行任务（可选断开）
-const processTokensForHourlyTask = async (token) => {
-  try {
-    // 发起选择/连接（使用组件内的 selectToken 以保留提示逻辑）
-    try {
-      selectToken(token)
-    } catch (e) {
-      // selectToken 通常是同步的；忽略其错误，继续等待连接
-      console.warn('selectToken 抛出异常（可忽略）', e)
-    }
-
-    // 强制等待连接成功；超时则视为失败并中止批量操作
-    try {
-      await waitForConnectionStatus(token.id, 'connected', { interval: 500, timeout: 30000 })
-      message.success(`${token.name} 已连接，开始执行任务`)
-    } catch (err) {
-      message.error(`${token.name} 连接超时：${err.message}`)
-      return { success: false, tokenId: token.id, error: err }
-    }
-
-    // TODO: 在这里放置针对已连接 token 的实际任务，例如：
-    handleBottleHelper();
-    await waitForSeconds(2);
-    await extendHangUp();
-    await waitForSeconds(2);
-    await claimHangUpReward();
-    // await performDailyTasksForSelectedToken() // 必须返回 Promise
-    await waitForSeconds(5);// 等待10秒以确保断开完成
-    // 任务完成后断开连接以节省资源
-    tokenStore.closeWebSocketConnection(token.id)
-
-    return { success: true, tokenId: token.id }
-  } catch (error) {
-    console.error('处理 token 失败', token.id, error)
-    return { success: false, tokenId: token.id, error }
-  }
-}
-
-const handleBottleHelper = () => {
-  if (!tokenStore.selectedToken) {
-    message.warning('请先选择Token')
-    return
-  }
-  const tokenId = tokenStore.selectedToken.id
-  tokenStore.sendMessage(tokenId, 'bottlehelper_stop')
-  setTimeout(() => {
-    tokenStore.sendMessage(tokenId, 'bottlehelper_start')
-    tokenStore.sendMessage(tokenId, 'role_getroleinfo')
-  }, 500)
-  console.log('重启盐罐机器人')
-}
-
-const extendHangUp = async () => {
-  if (!tokenStore.selectedToken) return message.warning('请先选择Token')
-  const tokenId = tokenStore.selectedToken.id
-  try {
-    console.log('正在加钟...')
-    const tasks = []
-    for (let i = 0; i < 4; i++) {
-      tasks.push(new Promise((resolve) => {
-        setTimeout(() => {
-          tokenStore.sendMessage(tokenId, 'system_mysharecallback', { isSkipShareCard: true, type: 2 })
-          resolve()
-        }, i * 300)
-      }))
-    }
-    await Promise.all(tasks)
-    setTimeout(() => tokenStore.sendMessage(tokenId, 'role_getroleinfo'), 1500)
-    setTimeout(() => {
-      message.success('加钟操作已完成，请查看挂机剩余时间')
-    }, 2500)
-  } catch (e) {
-    message.error('加钟操作失败: ' + (e?.message || '未知错误'))
-  }
-}
-
-const claimHangUpReward = async () => {
-  if (!tokenStore.selectedToken) return message.warning('请先选择Token')
-  const tokenId = tokenStore.selectedToken.id
-  try {
-    console.log('正在领取挂机奖励...')
-    tokenStore.sendMessage(tokenId, 'system_mysharecallback')
-    setTimeout(() => tokenStore.sendMessage(tokenId, 'system_claimhangupreward'), 200)
-    setTimeout(() => tokenStore.sendMessage(tokenId, 'system_mysharecallback', { isSkipShareCard: true, type: 2 }), 400)
-    setTimeout(() => tokenStore.sendMessage(tokenId, 'role_getroleinfo'), 600)
-    setTimeout(() => {
-      message.success('挂机奖励领取完成')
-    }, 1200)
-  } catch (e) {
-    message.error('领取挂机奖励失败: ' + (e?.message || '未知错误'))
-  }
-}
-
-// 串行遍历 tokens：仅在当前 token 连接成功后才继续下一个
-const BulkHourlyTask = async () => {
-  for (const token of tokenStore.gameTokens) {
-    const res = await processTokensForHourlyTask(token)
-    if (!res.success) {
-      // 如果某个 token 无法连接，停止整个批量流程并提示（可按需改为跳过继续）
-      message.error(`在处理 ${token.name} 时发生错误，已中止批量操作`)
-      //return
-    }
-
-    await waitForSeconds(5);// 等待5秒防止账号切换过快
-  }
-
-  message.success('批量日常处理完成（已串行执行）')
-}
-
-// --- 调度器: 每 5 分钟检查一次，若发现某指定时间点未执行则执行一次，并记录到 localStorage ---
-const scheduledCheckerTimer = ref(null)
-const isScheduledRunning = ref(false)
-// 检查间隔：1 分钟
-const CHECK_INTERVAL_MS = 1 * 60 * 1000
-// 要保证执行的时间点（24 小时制小时数）
-const SCHEDULE_HOURS = [1, 7, 13, 19,23]
-// localStorage key（带版本号以便未来迁移）
-const STORAGE_KEY = 'bulkHourlyRunRecords_v1'
-
-// 从 localStorage 读取记录，格式: { "YYYY-MM-DD": [1,7], ... }
-const loadRunRecords = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return {}
-    return JSON.parse(raw) || {}
-  } catch (e) {
-    console.warn('读取运行记录失败', e)
-    return {}
-  }
-}
-
-const saveRunRecords = (records) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
-  } catch (e) {
-    console.warn('保存运行记录失败', e)
-  }
-}
-
-const hasRun = (dateStr, hour) => {
-  const records = loadRunRecords()
-  const arr = records[dateStr] || []
-  if (arr.includes(hour)) return true
-  return false
-}
-
-const markRun = (dateStr, hour) => {
-  const records = loadRunRecords()
-  records[dateStr] = records[dateStr] || []
-  if (!records[dateStr].includes(hour)) records[dateStr].push(hour)
-
-  // 简单清理：只保留最近 7 天记录
-  const keepDays = 7
-  const keys = Object.keys(records).sort().reverse().slice(0, keepDays)
-  const pruned = {}
-  for (const k of keys) pruned[k] = records[k]
-
-  saveRunRecords(pruned)
-}
-
-// 检查并执行尚未执行的时段（顺序执行，避免并行）
-  const checkAndRunScheduled = async () => {
-  if (isScheduledRunning.value) return
-  isScheduledRunning.value = true
-
-  try {
-    const now = new Date()
-    // 使用本地日期（YYYY-MM-DD），避免使用 UTC 日期导致跨时区偏差
-    const today = now.toLocaleDateString('en-CA')
-
-    console.log(`检查定点任务: ${now}`)
-
-    // 收集所有满足: 当前时间 >= 指定时点 && 当天未执行 的时段（显式遍历，便于调试）
-    const toRun = []
-    const runChecks = []
-    for (const h of SCHEDULE_HOURS) {
-      const scheduled = new Date(now)
-      scheduled.setHours(h, 0, 0, 0)
-      const already = hasRun(today, h)
-      const shouldRun = now >= scheduled && !already
-      runChecks.push({ hour: h, scheduled: scheduled.toISOString(), now: now.toISOString(), already, shouldRun })
-      if (shouldRun) toRun.push(h)
-    }
-
-    // 输出调试信息并返回检查集，便于在不刷新页面时排查问题
-    console.debug('定点任务检查结果', runChecks)
-
-    if (toRun.length === 0) return
-
-    // 依次执行每个未执行的时段任务
-    for (const h of toRun) {
-      try {
-        console.log(`触发定点任务: ${today} ${h}:00`)
-        await BulkHourlyTask()
-        markRun(today, h)
-        // 每次执行后短暂停（避免过快连跑）
-        await waitForSeconds(1)
-      } catch (e) {
-        console.error('执行 BulkHourlyTask 失败，稍后将重试', e)
-        // 如果失败不记录，下一次检查时会重试
-      }
-    }
-  } finally {
-    isScheduledRunning.value = false
-  }
-}
-
-const startScheduledBulkHourly = (startImmediately = false) => {
-  if (scheduledCheckerTimer.value) return
-
-  if (startImmediately) {
-    // 先立即检查一次
-    checkAndRunScheduled().catch(e => console.error(e))
-  }
-
-  scheduledCheckerTimer.value = setInterval(() => {
-    checkAndRunScheduled().catch(e => console.error(e))
-  }, CHECK_INTERVAL_MS)
-
-  message.info(`定时检查已启动：每 ${Math.floor(CHECK_INTERVAL_MS / 60000)} 分钟检查一次，确保执行时段 ${SCHEDULE_HOURS.join(', ')} 点`) 
-}
-
-const stopScheduledBulkHourly = () => {
-  if (scheduledCheckerTimer.value) {
-    clearInterval(scheduledCheckerTimer.value)
-    scheduledCheckerTimer.value = null
-    message.info('定时检查已停止')
-  }
-}
+// Scheduling and bulk-hourly task logic moved to src/schedulers/bulkHourlyScheduler.js
 
 // 刷新角色信息
 const refreshRoleInfo = async () => {
@@ -1199,12 +948,12 @@ onMounted(async () => {
     showImportForm.value = true
   }
   // 启动定时任务调度（默认不立即执行一次）
-  startScheduledBulkHourly(false)
+  startScheduledBulkHourly(message, false)
 })
 
 onUnmounted(() => {
   // 清理定时器
-  stopScheduledBulkHourly()
+  stopScheduledBulkHourly(message)
 })
 </script>
 
