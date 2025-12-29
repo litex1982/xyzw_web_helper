@@ -7,7 +7,7 @@ let isScheduledRunning = false
 
 // Locking (localStorage) similar to bulkDailyScheduler
 const LOCK_KEY = 'bulkHourlyScheduler_lock'
-const LOCK_TTL = 10 * 60 * 1000 // 10 minutes
+const LOCK_TTL = 30 * 60 * 1000 // 30 minutes
 const sessionId = 'bulkhourly_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
 
 const tryAcquireLock = () => {
