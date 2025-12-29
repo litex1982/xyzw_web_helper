@@ -3,7 +3,6 @@ import { useTokenStore } from '@/stores/tokenStore'
 // Exports: startScheduledBulkHourly(message?, startImmediately), stopScheduledBulkHourly(message?), BulkHourlyTask(message?)
 
 let scheduledCheckerTimer = null
-let isScheduledRunning = false
 
 // Locking (localStorage) similar to bulkDailyScheduler
 const LOCK_KEY = 'bulkHourlyScheduler_lock'
@@ -201,15 +200,9 @@ const BulkHourlyTask = async (message) => {
 }
 
 const checkAndRunScheduled = async (message) => {
-  if (isScheduledRunning) return
-  isScheduledRunning = true
-
   // Try acquire lock to avoid multiple tabs running concurrently
   const locked = tryAcquireLock()
-  if (!locked) {
-    isScheduledRunning = false
-    return
-  }
+  if (!locked) return
 
   try {
     const now = new Date()
@@ -236,7 +229,6 @@ const checkAndRunScheduled = async (message) => {
     }
   } finally {
     releaseLock()
-    isScheduledRunning = false
   }
 }
 
