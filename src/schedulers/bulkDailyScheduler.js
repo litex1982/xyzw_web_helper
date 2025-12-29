@@ -3,9 +3,8 @@ import { performBulkDailyTask } from '@/tasks/taskRunner'
 
 const RUN_RECORD_KEY = 'bulkDailyRunRecords_v1'
 const LOCK_KEY = 'bulkDailyScheduler_lock'
-const LOCK_TTL = 10 * 60 * 1000 // 10 minutes
+const LOCK_TTL = 120 * 60 * 1000 // 120 minutes
 let intervalId = null
-let isDailyScheduledRunning = false
 const sessionId = 'scheduler_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
 
 const getRunRecords = () => {
@@ -94,8 +93,6 @@ const releaseLock = () => {
 }
 
 const checkAndRunDaily = async (message) => {
-  if (isDailyScheduledRunning) return
-  isDailyScheduledRunning = true
   const tokenStore = useTokenStore()
   const now = new Date()
   const scheduledHour = 14
@@ -110,10 +107,7 @@ const checkAndRunDaily = async (message) => {
 
   // 尝试获取锁，避免多标签页并发
   const locked = tryAcquireLock()
-  if (!locked) {
-    isDailyScheduledRunning = false
-    return
-  }
+  if (!locked) return
 
   try {
     // 执行 task runner 中定义的任务
@@ -123,7 +117,6 @@ const checkAndRunDaily = async (message) => {
     console.error('执行 BulkDailyTask 失败', e)
   } finally {
     releaseLock()
-    isDailyScheduledRunning = false
   }
 }
 
@@ -139,7 +132,6 @@ export const stopScheduledBulkDaily = (message) => {
   if (intervalId) {
     clearInterval(intervalId)
     intervalId = null
-    isDailyScheduledRunning = false
     releaseLock()
     if (message && message.info) message.info('定时检查已停止')
   }
