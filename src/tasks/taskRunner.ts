@@ -56,8 +56,7 @@ const executeGameCommand = async (tokenId, cmd, params = {}, description = '', t
 }
 
 // 执行一次针对所有token的每日任务（串行）
-const performBulkDailyTask = async (options: { sleepBetweenTokensSec?: number } = {}) => {
-  const sleepBetween = options.sleepBetweenTokensSec ?? 2
+const performBulkDailyTask = async (message:any) => {
   const tokenStore = useTokenStore()
 
   if (!tokenStore.gameTokens || tokenStore.gameTokens.length === 0) {
@@ -69,7 +68,7 @@ const performBulkDailyTask = async (options: { sleepBetweenTokensSec?: number } 
 
   for (const token of tokenStore.gameTokens) {
     try {
-      console.debug('BulkDailyTask: 选择 token', token.id)
+      if (message && message.success) message.success(`${token.name} 开始连接`)
       let connectionRetry = 5
       while (connectionRetry > 0) {
         tokenStore.selectToken(token.id)
@@ -87,7 +86,7 @@ const performBulkDailyTask = async (options: { sleepBetweenTokensSec?: number } 
         continue
       }
 
-      console.debug('BulkDailyTask: 开始执行任务', token.name)
+      if (message && message.success) message.success(`${token.name} 开始执行任务`)
 
       let roleInfo = null
       try {
@@ -103,23 +102,32 @@ const performBulkDailyTask = async (options: { sleepBetweenTokensSec?: number } 
       const statistics = roleInfo?.role?.statistics ?? {}
       const settings = loadDailyTaskSettings(token.id)
 
-      // 挂机奖励: 先加钟4次
-      for (let i = 0; i < 4; i++) {
-        try {
-          await executeGameCommand(token.id, 'system_mysharecallback', { isSkipShareCard: true, type: 2 }, `挂机加钟 ${i + 1}`)
-        } catch (e) {
-          console.warn(`BulkDailyTask: 加钟失败 [${token.id}]`, e)
+      //挂机奖励:判断需要执行挂机领取次数
+      if (!isTaskCompleted(5)) {
+        //获取已经领取挂机次数
+        let alreadyHangUpCount = completedTasks[5] ?? 0
+        //剩余需要领取奖励数为5次减去已经完成次数
+        const remainingHangUpCount = Math.max(5 - alreadyHangUpCount, 0)
+        //需要领取挂机奖励，先加钟
+        if(remainingHangUpCount>0){
+          // 挂机奖励: 先加钟4次
+          for (let i = 0; i < 4; i++) {
+            try {
+              await executeGameCommand(token.id, 'system_mysharecallback', { isSkipShareCard: true, type: 2 }, `挂机加钟 ${i + 1}`)
+            } catch (e) {
+              console.warn(`BulkDailyTask: 加钟失败 [${token.id}]`, e)
+            }
+          }
         }
-      }
-
-      // 然后领取5次奖励
-      for (let i = 0; i < 5; i++) {
-        try {
-          await executeGameCommand(token.id, 'system_claimhangupreward', {}, '领取挂机奖励')
-        } catch (e) {
-          console.warn(`BulkDailyTask: 领取挂机奖励失败 [${token.id}]`, e)
+        // 然后领取需要完成的剩余奖励
+        for (let i = 0; i < remainingHangUpCount; i++) {
+          try {
+            await executeGameCommand(token.id, 'system_claimhangupreward', {}, '领取挂机奖励')
+          } catch (e) {
+            console.warn(`BulkDailyTask: 领取挂机奖励失败 [${token.id}]`, e)
+          }
+          await waitForSeconds(10)
         }
-        await waitForSeconds(10)
       }
 
       if (!isTaskCompleted(3)) {
@@ -229,8 +237,11 @@ const performBulkDailyTask = async (options: { sleepBetweenTokensSec?: number } 
         }
       }
 
-      for (let i = 0; i < 3; i++) {
-        try { await executeGameCommand(token.id, 'genie_buysweep', {}, `领取免费扫荡卷 ${i + 1}`) } catch (e) { console.warn('领取免费扫荡卷失败', e) }
+      // 领取免费扫荡卷
+      if (isTodayAvailable(statisticsTime[`genie:sweep:buy`])) {
+        for (let i = 0; i < 3; i++) {
+          try { await executeGameCommand(token.id, 'genie_buysweep', {}, `领取免费扫荡卷 ${i + 1}`) } catch (e) { console.warn('领取免费扫荡卷失败', e) }
+        }
       }
 
       if (!isTaskCompleted(12) && settings.blackMarketPurchase) {
@@ -246,6 +257,7 @@ const performBulkDailyTask = async (options: { sleepBetweenTokensSec?: number } 
 
       await waitForSeconds(10)
       tokenStore.closeWebSocketConnection(token.id)
+      if (message && message.success) message.success(`${token.name} 执行任务完成`)
 
     } catch (error) {
       console.error('BulkDailyTask 处理 token 失败:', token.id, error)

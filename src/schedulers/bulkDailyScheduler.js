@@ -5,6 +5,7 @@ const RUN_RECORD_KEY = 'bulkDailyRunRecords_v1'
 const LOCK_KEY = 'bulkDailyScheduler_lock'
 const LOCK_TTL = 10 * 60 * 1000 // 10 minutes
 let intervalId = null
+let isScheduledRunning = false
 const sessionId = 'scheduler_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
 
 const getRunRecords = () => {
@@ -92,7 +93,9 @@ const releaseLock = () => {
   }
 }
 
-const checkAndRunDaily = async () => {
+const checkAndRunDaily = async (message) => {
+  if (isScheduledRunning) return
+  isScheduledRunning = true
   const tokenStore = useTokenStore()
   const now = new Date()
   const scheduledHour = 14
@@ -107,34 +110,36 @@ const checkAndRunDaily = async () => {
 
   // 尝试获取锁，避免多标签页并发
   const locked = tryAcquireLock()
-  if (!locked) return
+  if (!locked) {
+    isScheduledRunning = false
+    return
+  }
 
-    try {
-      // 执行 task runner 中定义的任务
-      await performBulkDailyTask({ sleepBetweenTokensSec: 2 })
-      recordRunForToday('14:00')
-    } catch (e) {
-      console.error('执行 BulkDailyTask 失败', e)
-    } finally {
-      releaseLock()
-    }
+  try {
+    // 执行 task runner 中定义的任务
+    await performBulkDailyTask(message)
+    recordRunForToday('14:00')
+  } catch (e) {
+    console.error('执行 BulkDailyTask 失败', e)
+  } finally {
+    releaseLock()
+    isScheduledRunning = false
+  }
 }
 
-export const startScheduledBulkDaily = (immediate = false) => {
+export const startScheduledBulkDaily = (message) => {
   // 每5分钟检查一次
   if (intervalId) return
-  if (immediate) {
-    checkAndRunDaily().catch(e => console.error(e))
-  }
   intervalId = setInterval(() => {
-    checkAndRunDaily().catch(e => console.error(e))
-  }, 0.5 * 60 * 1000)
+    checkAndRunDaily(message).catch(e => console.error(e))
+  }, 1 * 60 * 1000)
 }
 
-export const stopScheduledBulkDaily = () => {
+export const stopScheduledBulkDaily = (message) => {
   if (intervalId) {
     clearInterval(intervalId)
     intervalId = null
+    if (message && message.info) message.info('定时检查已停止')
   }
 }
 

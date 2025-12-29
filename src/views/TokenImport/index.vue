@@ -299,6 +299,7 @@ import { NIcon, useDialog, useMessage } from 'naive-ui'
 import { h, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { startScheduledBulkHourly, stopScheduledBulkHourly, BulkHourlyTask } from '@/schedulers/bulkHourlyScheduler'
+import { startScheduledBulkDaily, stopScheduledBulkDaily } from '@/schedulers/bulkDailyScheduler'
 
 // 接收路由参数
 const props = defineProps({
@@ -949,11 +950,13 @@ onMounted(async () => {
   }
   // 启动定时任务调度（默认不立即执行一次）
   startScheduledBulkHourly(message, false)
+  startScheduledBulkDaily(message)
 })
 
 onUnmounted(() => {
   // 清理定时器
   stopScheduledBulkHourly(message)
+  stopScheduledBulkDaily(message)
 })
 </script>
 

@@ -8,7 +8,6 @@ import { createPinia } from 'pinia'
 import naive from 'naive-ui'
 import router from './router'
 import App from './App.vue'
-import { startScheduledBulkDaily } from '@/schedulers/bulkDailyScheduler'
 // import { i18n } from './locales';
 
 // 创建应用实例
@@ -20,8 +19,7 @@ app.use(router)
 app.use(naive)
 // app.use(i18n)
 
-// 启动应用级别的每日任务调度（检查 14:00 任务），非立即执行
-startScheduledBulkDaily(false)
+// NOTE: `startScheduledBulkDaily` is moved to TokenImport view to scope it
 
 // 全局主题应用：从 localStorage 读取并设置 data-theme 属性
 const applyTheme = () => {
