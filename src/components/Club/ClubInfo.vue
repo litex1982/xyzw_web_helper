@@ -1,5 +1,5 @@
 <template>
-  <MyCard class="club-info" :statusClass="{ active: !!club }">
+  <MyCard class="club-info" :statusClass="{ active: !!club }" style="min-width: 650px;">
     <template #icon>
       <img src="/icons/1733492491706152.png" alt="俱乐部图标">
     </template>
@@ -309,7 +309,7 @@ const formatNumber = (num) => {
 
   .member-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     padding: 8px;
     border-radius: 8px;
