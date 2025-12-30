@@ -499,9 +499,10 @@ const remainingGoldNeeded = computed(() => Math.max(0, targetGold.value - curren
 const goldRateObserved = computed(() => {
     const g = currentGold.value || 0;
     const o = totalObtained.value || 0;
-    if (g > 0 && o > 0) {
-        // 返回普通道具/黄金（即平均需要多少普通道具产出 1 个黄金）
-        return o / g;
+    const s = ActivityItem.value || 0;
+    if (g > 0 && o > 0 && o > s) {
+        // 返回使用的普通道具/黄金（即平均需要多少普通道具产出 1 个黄金）
+        return (o-s) / g;
     }
     return null;
 });
@@ -518,20 +519,6 @@ const currentOrdStock = computed(() => ActivityItem.value || 0);
 // 对于显示，向上取整剩余所需的普通道具数，确保提示为整数
 const remainingOrdNeeded = computed(() => Math.max(0, Math.ceil(neededOrd.value - currentOrdStock.value)));
 
-// 预测轮次：基于 rewardConfigs 的平均每轮普通道具收益估算所需轮次
-const avgPerRound = computed(() => {
-    // 计算所有任务当前每轮平均奖励（使用 rewardConfigs 中所有第一项的平均作为保守估计）
-    const sums = Object.values(rewardConfigs).flat().map(x => x.num || 0);
-    if (sums.length === 0) return 0;
-    const avg = sums.reduce((a, b) => a + b, 0) / sums.length;
-    return Math.max(1, Math.round(avg));
-});
-
-
-// 基线：当前已累计普通道具（已获得 + 库存）
-const baselineOrd = computed(() => {
-    return (totalObtained.value || 0) + (ActivityItem.value || 0);
-});
 
 // 构造可选升级项分组：对每个类别列出未来每个档位的选项
 const groupedUpgradeOptions = computed(() => {
@@ -576,7 +563,7 @@ const feasibleCombos = computed(() => {
         if (idx === m) {
             if (sumDelta >= target) {
                 // chosen is array of option objects
-                combos.push({ sumDelta, sumCost, combo: chosen.slice(), totalOrd: (baselineOrd.value || 0) + sumDelta });
+                combos.push({ sumDelta, sumCost, combo: chosen.slice(), totalOrd: (totalObtained.value || 0) + sumDelta });
             }
             count++;
             return;
