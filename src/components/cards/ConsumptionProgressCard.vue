@@ -61,9 +61,19 @@
                 <div v-if="feasibleCombos.length === 0">暂无可行组合或已满足目标</div>
                 <div v-else>
                     <div v-for="(combo, idx) in feasibleCombos" :key="idx" style="margin-bottom:12px;">
-                        <div><strong>方案 {{ idx + 1 }} : {{ combo.totalOrd }}档</strong></div>
+                        <div>
+                            <strong>方案 {{ idx + 1 }} : {{ combo.totalOrd }}档</strong>
+                        </div>
                         <ol>
-                            <li v-for="step in combo.combo" :key="step.id + '-' + step.threshold">{{ step.name }} -> 达到 {{ step.threshold }} (可得 {{ step.delta }} 普通道具, 还需消耗 {{ step.cost }})</li>
+                            <li v-for="step in combo.combo" :key="step.id + '-' + step.threshold">
+                                {{ step.name }} -> 达到 {{ step.threshold }} (可得 {{ step.delta }} 普通道具, 还需消耗 {{ step.cost }})
+                            <div >
+                            <div v-if="step.name === '捕获'">
+                                如购买原价鱼竿需要消耗: {{ GoldSpentBuyRod(combo) || 0 }} 金砖
+                                <span style="color:red;" v-if="GoldSpentExceeded(combo)">（超出方案金砖档位）</span>
+                            </div>
+                            </div>
+                            </li>
                         </ol>
                     </div>
                 </div>
@@ -584,6 +594,31 @@ const feasibleCombos = computed(() => {
     combos.sort((a, b) => a.sumDelta - b.sumDelta || a.sumCost - b.sumCost);
     return combos;
 });
+
+// expose display strings for current rods and diamonds
+const GoldSpentBuyRod = (combo) => {
+    if (combo && combo.combo){
+      const rodTarget = combo.combo.find(c => c.name === "捕获")?.threshold || 0;
+      const currentRodConsumed = (progressList.value.find(p => p.name === "捕获")?.current) || 0;
+      const stockRod = roleInfo.value?.role?.items?.[1012]?.quantity || 0;
+      const extraRods = Math.max(0, rodTarget- currentRodConsumed - stockRod);
+      //原价购买鱼竿金砖估算
+      const godSpent = extraRods*600;
+      return godSpent;
+    }
+  return 0;
+};
+
+const GoldSpentExceeded = (combo) => {
+    if (combo && combo.combo){
+      const rodTarget = combo.combo.find(c => c.name === "捕获")?.threshold || 0;
+      const goldTarget = combo.combo.find(c => c.name === "金砖")?.threshold || 0;
+      const currentGoldConsumed = (progressList.value.find(p => p.name === "金砖")?.current) || 0;
+      const extraRodCost = GoldSpentBuyRod(combo);
+      return currentGoldConsumed + extraRodCost > goldTarget;
+    }
+    return false;
+};
 </script>
 
 <style scoped lang="scss">
