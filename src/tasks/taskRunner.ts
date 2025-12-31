@@ -5,6 +5,61 @@ const waitForSeconds = (seconds = 20) => {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, seconds) * 1000))
 }
 
+// 辅助函数
+const pickArenaTargetId = (targets: any) => {
+  if (!targets) return null
+
+  const extractPower = (item: any) => {
+    if (!item) return Number.POSITIVE_INFINITY
+    // try several common locations for power
+    const candidates = [item.power, item.info?.power, item.rolePower, item.powerValue]
+    for (const c of candidates) {
+      if (typeof c === 'number' && !Number.isNaN(c)) return c
+      if (typeof c === 'string' && !Number.isNaN(Number(c))) return Number(c)
+    }
+    return Number.POSITIVE_INFINITY
+  }
+
+  const pickFromArray = (arr: any[]) => {
+    if (!Array.isArray(arr) || arr.length === 0) return null
+    let minItem: any = null
+    let minPower = Number.POSITIVE_INFINITY
+    for (const it of arr) {
+      const p = extractPower(it)
+      if (p < minPower) {
+        minPower = p
+        minItem = it
+      }
+    }
+    return minItem
+  }
+
+  // If targets is an array directly, pick the one with lowest power
+  if (Array.isArray(targets)) {
+    const candidate = pickFromArray(targets)
+    return candidate?.roleId || candidate?.id || candidate?.targetId || null
+  }
+
+  // Try various container fields that may hold arrays of targets
+  const lists = [
+    targets?.rankList,
+    targets?.roleList,
+    targets?.targets,
+    targets?.targetList,
+    targets?.list
+  ]
+
+  for (const l of lists) {
+    if (Array.isArray(l) && l.length > 0) {
+      const candidate = pickFromArray(l)
+      if (candidate) return candidate?.roleId || candidate?.id || candidate?.targetId || null
+    }
+  }
+
+  // Fallback to direct fields on targets
+  return targets?.roleId || targets?.id || targets?.targetId || null
+}
+
 const isTodayAvailable = (statisticsTime: any) => {
   if (!statisticsTime) return true
   const today = new Date().toDateString()
@@ -168,6 +223,37 @@ const performBulkDailyTask = async (message:any) => {
           console.warn(`BulkDailyTask: 领取盐罐奖励失败 [${token.id}]`, e)
         }
       }
+
+      
+    // 2. 竞技场
+    if (!isTaskCompleted(13) && settings.arenaEnable) {
+      const hour = new Date().getHours()
+      if (hour < 8) {
+            console.warn(`BulkDailyTask: 当前时间未到8点，跳过竞技场战斗 [${token.name}]`)
+      } else if (hour > 22) {
+            console.warn(`BulkDailyTask: 当前时间已过22点，跳过竞技场战斗 [${token.name}]`)
+      }else{
+        //开启竞技场
+        await executeGameCommand(token.id, 'arena_startarea', {}, '开始竞技场')
+        for (let i = 1; i <= 3; i++) {
+              let targets
+              try {
+                targets = await executeGameCommand(token.id, 'arena_getareatarget', {}, `获取竞技场目标${i}`)
+              } catch (err:any) {
+                console.warn(`BulkDailyTask: 竞技场战斗${i} - 获取对手失败: ${err.message} [${token.name}]`,err)
+                break
+              }
+
+              const targetId = pickArenaTargetId(targets)
+              if (targetId) {
+                await executeGameCommand(token.id, 'fight_startareaarena', { targetId }, `竞技场战斗${i}`, 10000)
+              } else {
+                console.warn(`BulkDailyTask: 竞技场战斗${i} - 未找到目标: ${JSON.stringify(targets)} [${token.name}]`)
+              }
+              await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      }
+    }
 
       if (!isTaskCompleted(6) && isTodayAvailable(statisticsTime['buy:gold'])) {
         try {

@@ -846,17 +846,59 @@ const getStatusText = (tokenId) => {
   return '等待中'
 }
 
+// 辅助函数
 const pickArenaTargetId = (targets) => {
-  const candidate =
-    targets?.rankList?.[0] ||
-    targets?.roleList?.[0] ||
-    targets?.targets?.[0] ||
-    targets?.targetList?.[0] ||
-    targets?.list?.[0]
+  if (!targets) return null
 
-  if (candidate?.roleId) return candidate.roleId
-  if (candidate?.id) return candidate.id
-  return targets?.roleId || targets?.id
+  const extractPower = (item) => {
+    if (!item) return Number.POSITIVE_INFINITY
+    // try several common locations for power
+    const candidates = [item.power, item.info?.power, item.rolePower, item.powerValue]
+    for (const c of candidates) {
+      if (typeof c === 'number' && !Number.isNaN(c)) return c
+      if (typeof c === 'string' && !Number.isNaN(Number(c))) return Number(c)
+    }
+    return Number.POSITIVE_INFINITY
+  }
+
+  const pickFromArray = (arr) => {
+    if (!Array.isArray(arr) || arr.length === 0) return null
+    let minItem = null
+    let minPower = Number.POSITIVE_INFINITY
+    for (const it of arr) {
+      const p = extractPower(it)
+      if (p < minPower) {
+        minPower = p
+        minItem = it
+      }
+    }
+    return minItem
+  }
+
+  // If targets is an array directly, pick the one with lowest power
+  if (Array.isArray(targets)) {
+    const candidate = pickFromArray(targets)
+    return candidate?.roleId || candidate?.id || candidate?.targetId || null
+  }
+
+  // Try various container fields that may hold arrays of targets
+  const lists = [
+    targets?.rankList,
+    targets?.roleList,
+    targets?.targets,
+    targets?.targetList,
+    targets?.list
+  ]
+
+  for (const l of lists) {
+    if (Array.isArray(l) && l.length > 0) {
+      const candidate = pickFromArray(l)
+      if (candidate) return candidate?.roleId || candidate?.id || candidate?.targetId || null
+    }
+  }
+
+  // Fallback to direct fields on targets
+  return targets?.roleId || targets?.id || targets?.targetId || null
 }
 
 // 月度任务常量
