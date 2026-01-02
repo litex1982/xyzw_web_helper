@@ -19,6 +19,14 @@
           <n-button type="info" size="small" class="ml-2" @click="testBONDecoding">
             🔓 测试BON解码
           </n-button>
+
+          <!-- 新增：字节串输入 -->
+          <div class="mt-2 flex items-center gap-2">
+            <n-input v-model:value="byteInput" placeholder="输入 Int8 字节串（空格分隔），例如: -12 52 -108 或 0x34 0x8C 0x3B" class="flex-1" />
+            <n-button size="small" type="primary" @click="decodeBytes" :disabled="!byteInput">
+              解码 Int8 字节串
+            </n-button>
+          </div>
         </div>
         
         <!-- 预设消息测试 -->
@@ -918,6 +926,117 @@ const formatJSON = (data) => {
     return jsonString
   } catch (error) {
     return `[JSON序列化错误: ${error.message}]`
+  }
+}
+
+// 新增响应式字段：字节串输入
+const byteInput = ref('')
+
+/**
+ * 浏览器端 Base64 转 Hex 方法
+ * @param {string} base64Str - 输入的Base64字符串（支持标准Base64格式）
+ * @returns {string} 转换后的Hex字符串（小写，无空格/前缀，可直接用于HexView）
+ */
+function base64ToHex(base64Str) {
+  try {
+    // 步骤1：Base64解码为ASCII字符串（atob() 是浏览器原生Base64解码方法）
+    const decodedStr = atob(base64Str);
+    
+    // 步骤2：初始化Hex结果字符串
+    let hexResult = '';
+    
+    // 步骤3：遍历解码后的字符串，将每个字符转为对应的两位十六进制
+    for (let i = 0; i < decodedStr.length; i++) {
+      // 3.1 获取字符的ASCII码（字节值，0~255，对应uint8）
+      const byteValue = decodedStr.charCodeAt(i);
+      
+      // 3.2 转为十六进制字符串，不足两位补前导零（padStart(2, '0')）
+      const hexByte = byteValue.toString(16).padStart(2, '0');
+      
+      // 3.3 拼接至最终结果
+      hexResult += hexByte;
+    }
+    
+    // 步骤4：返回最终Hex字符串（如需大写，可追加 .toUpperCase()）
+    return hexResult;
+  } catch (error) {
+    console.error("Base64转Hex失败：", error.message);
+    return "";
+  }
+}
+
+// 将用户输入解析为 Int8Array（支持带符号十进制或 hex，如 -12, 127, 0x8C, 8C）
+// 要求 token 以空格为主分隔，也支持其他常见分隔符
+const parseByteStringToInt8Array = (s) => {
+  const hexValue = base64ToHex(s)
+  console.warn('转换后的Hex值:', hexValue);
+  const uintbytes = Uint8Array.fromHex(hexValue);
+console.log(uintbytes); // Uint8Array [ 202, 254, 208, 13 ]
+  return uintbytes;
+}
+
+  /** 尝试为日志解码BON体，成功返回对象 */
+  const decodeBodyForLog = async (body) => {
+    const { g_utils } = await import('../../utils/bonProtocol.js')
+    if (!body) return null
+    const decoder = g_utils?.bon?.decode
+    if (typeof decoder !== 'function') return null
+
+    let bytes = null
+    if (body instanceof Uint8Array) {
+      bytes = body
+    } 
+    if (!bytes) return null
+
+    try {
+      return decoder(bytes)
+    } catch (error) {
+      return null
+    }
+  }
+
+
+// 修改解码函数：使用 Int8Array，传给 g_utils.parse 时用 Uint8Array 视图以保留原始字节
+const decodeBytes = async () => {
+  if (!byteInput.value) {
+    message.warning('请输入字节串')
+    return
+  }
+
+  const int8 = parseByteStringToInt8Array(byteInput.value)
+  if (!int8) {
+    message.error('字节串解析失败，请输入空格分隔的 Int8 值（例如: -12 34 127）或 hex（例如: 0x8C 34）')
+    return
+  }
+
+  try {
+    const { g_utils } = await import('../../utils/bonProtocol.js')
+    // 使用 Uint8Array 视图传入以保留原始二进制表示
+    const rawView = new Uint8Array(int8.buffer)
+    const proto = g_utils.parse(rawView)
+    g_utils.ar
+    let decodedContent = null
+    try { decodedContent = proto?.rawData ?? proto?._raw ?? proto } catch { decodedContent = proto }
+    const decodedbody=await decodeBodyForLog(proto._raw.body)
+    addToHistory('test', {
+      testType: 'Int8 字节串 -> BON 解析',
+      inputPreview: byteInput.value.slice(0, 120),
+      proto,
+      decoded: decodedContent,
+      body: decodedbody ?? proto._raw.body,
+      status: 'success'
+    }, proto?.cmd ?? 'int8_bytes_decode')
+
+    message.success('字节串解码并解析成功，请查看消息历史')
+  } catch (err) {
+    console.error('字节串解析失败', err)
+    message.error('字节串解析失败: ' + (err?.message ?? err))
+    addToHistory('test', {
+      testType: 'Int8 字节串 -> BON 解析',
+      inputPreview: byteInput.value.slice(0, 120),
+      error: err?.message ?? String(err),
+      status: 'error'
+    }, 'int8_bytes_decode')
   }
 }
 

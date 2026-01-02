@@ -243,6 +243,9 @@ export function registerDefaultCommands(reg) {
     .register("bosstower_startbox")
     .register("discount_getdiscountinfo")
 
+    //怪异塔
+    .register("mergebox_claimfreeenergy", { actType: 1})
+
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
       throw new Error("fight_startareaarena requires targetId in params")

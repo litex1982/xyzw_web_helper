@@ -124,6 +124,7 @@ const processTokensForHourlyTask = async (token, message) => {
       }
     }
 
+
     // 执行任务序列
     // 重启盐罐机器人
     if (!tokenStore.selectedToken) tokenStore.selectToken(token.id)
@@ -132,6 +133,10 @@ const processTokensForHourlyTask = async (token, message) => {
     await new Promise(resolve => setTimeout(resolve, 500))
     tokenStore.sendMessage(tokenId, 'bottlehelper_start')
     tokenStore.sendMessage(tokenId, 'role_getroleinfo')
+    await waitForSeconds(2)
+
+    //怪异塔
+    tokenStore.sendMessage(tokenId, 'mergebox_claimfreeenergy', { actType: 1 })
     await waitForSeconds(2)
 
     // 加钟
