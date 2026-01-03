@@ -3,7 +3,7 @@ import { performBulkDailyTask } from '@/tasks/taskRunner'
 
 const RUN_RECORD_KEY = 'bulkDailyRunRecords_v1'
 const LOCK_KEY = 'bulkDailyScheduler_lock'
-const LOCK_TTL = 120 * 60 * 1000 // 120 minutes
+const LOCK_TTL = 240 * 60 * 1000 // 240 minutes
 let intervalId = null
 const sessionId = 'scheduler_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
 
