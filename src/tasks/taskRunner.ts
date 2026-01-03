@@ -358,8 +358,7 @@ const performBulkDailyTask = async (message:any) => {
         if(evotowerInfo && evotowerInfo?.evoTower?.energy > 0){
           try {
             const currentTower=evotowerInfo && evotowerInfo?.evoTower?.towerId
-            const rewardTowerId=evotowerInfo && evotowerInfo?.evoTower?.rewardTowerId
-            if(currentTower<=rewardTowerId*10){
+            if(currentTower%10===0){
               try {await executeGameCommand(token.id, 'evotower_claimreward', {}, '领取邪将塔奖励', 8000)}catch(e){console.warn('领取邪将塔奖励失败', e)} 
             }
             try {await executeGameCommand(token.id, 'evotower_readyfight', {}, '邪将塔准备战斗', 8000)} catch(e){console.warn('邪将塔准备战斗失败', e)}
