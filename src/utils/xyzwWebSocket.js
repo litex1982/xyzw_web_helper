@@ -168,10 +168,6 @@ export function registerDefaultCommands(reg) {
     .register("fight_startdungeon")
     .register("fight_startpvp")
 
-    // 怪异咸将塔
-    .register("evotower_getinfo")
-    .register("evotower_fight")
-
     // 瓶子机器人
     .register("bottlehelper_claim")
     .register("bottlehelper_start", { bottleType: -1 })
@@ -876,8 +872,6 @@ export class XyzwWebSocketClient {
       // 特殊响应映射 - 有些命令有独立响应，有些用同步响应
       'task_claimdailyrewardresp': 'task_claimdailyreward',
       'task_claimweekrewardresp': 'task_claimweekreward',
-      //邪将塔
-      'evotowerinforesp': 'evotower_getinfo',
 
       // 同步响应映射（优先级低）
       'syncresp': ['system_mysharecallback', 'task_claimdailypoint'],

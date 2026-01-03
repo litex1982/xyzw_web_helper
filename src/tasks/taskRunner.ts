@@ -352,23 +352,26 @@ const performBulkDailyTask = async (message:any) => {
       try { await executeGameCommand(token.id, 'task_claimdailyreward', {}, '领取日常任务奖励') } catch (e) { console.warn('日常奖励领取失败', e) }
       try { await executeGameCommand(token.id, 'task_claimweekreward', {}, '领取周常任务奖励') } catch (e) { console.warn('周常奖励领取失败', e) }
 
-      // 邪将塔每日任务
-      for(let round=1;round<=10;round++){
-        const evotowerInfo = await executeGameCommand(token.id, 'evotower_getinfo', {}, `获取邪将塔信息`, 8000)
-        if(evotowerInfo && evotowerInfo?.evoTower?.energy > 0){
-          try {
-            const currentTower=evotowerInfo && evotowerInfo?.evoTower?.towerId
-            if(currentTower%10===0){
-              try {await executeGameCommand(token.id, 'evotower_claimreward', {}, '领取邪将塔奖励', 8000)}catch(e){console.warn('领取邪将塔奖励失败', e)} 
-            }
-            try {await executeGameCommand(token.id, 'evotower_readyfight', {}, '邪将塔准备战斗', 8000)} catch(e){console.warn('邪将塔准备战斗失败', e)}
-            await executeGameCommand(token.id, 'evotower_fight', { battleNum: 1, winNum: 1 }, '邪将塔战斗', 8000)
-          } catch (e) { console.warn('邪将塔战斗失败', e) }
-        }else{
-          break
+      
+      try{
+          // 邪将塔每日任务
+        for(let round=1;round<=10;round++){
+          const evotowerInfo = await executeGameCommand(token.id, 'evotower_getinfo', {}, `获取邪将塔信息`, 8000)
+          if(evotowerInfo && evotowerInfo?.evoTower?.energy > 0){
+            try {
+              const currentTower=evotowerInfo && evotowerInfo?.evoTower?.towerId
+              if(currentTower%10===0){
+                try {await executeGameCommand(token.id, 'evotower_claimreward', {}, '领取邪将塔奖励', 8000)}catch(e){console.warn('领取邪将塔奖励失败', e)} 
+              }
+              try {await executeGameCommand(token.id, 'evotower_readyfight', {}, '邪将塔准备战斗', 8000)} catch(e){console.warn('邪将塔准备战斗失败', e)}
+              await executeGameCommand(token.id, 'evotower_fight', { battleNum: 1, winNum: 1 }, '邪将塔战斗', 8000)
+            } catch (e) { console.warn('邪将塔战斗失败', e) }
+          }else{
+            break
+          }
+          await waitForSeconds(0.3)
         }
-        await waitForSeconds(0.3)
-      }
+      }catch(e){console.warn('处理邪将塔任务失败', e)}
       // 领取邪将塔任务奖励
       for (let taskId = 1; taskId <= 3; taskId++) {
         try { await executeGameCommand(token.id, 'evotower_claimtask', { taskId:taskId }, `领取邪将塔任务奖励${taskId}`, 5000) } catch (e) { console.warn('领取邪将塔任务奖励失败', e) }
