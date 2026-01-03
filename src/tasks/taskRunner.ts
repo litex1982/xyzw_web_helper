@@ -1,4 +1,5 @@
 import { useTokenStore } from '@/stores/tokenStore'
+import { c } from 'naive-ui'
 
 // Helper
 const waitForSeconds = (seconds = 20) => {
@@ -99,6 +100,7 @@ const getTodayBossId = () => {
 
   // 执行单个游戏指令的封装（使用 tokenStore 的 sendMessageWithPromise）
 const executeGameCommand = async (tokenId, cmd, params = {}, description = '', timeout = 8000) => {
+  console.info(`执行任务: ${description}`)
   const tokenStore = useTokenStore()
   try {
     const result = await tokenStore.sendMessageWithPromise(tokenId, cmd, params, timeout)
@@ -227,32 +229,41 @@ const performBulkDailyTask = async (message:any) => {
       
     // 2. 竞技场
     if (!isTaskCompleted(13) && settings.arenaEnable) {
-      const hour = new Date().getHours()
-      if (hour < 8) {
-            console.warn(`BulkDailyTask: 当前时间未到8点，跳过竞技场战斗 [${token.name}]`)
-      } else if (hour > 22) {
-            console.warn(`BulkDailyTask: 当前时间已过22点，跳过竞技场战斗 [${token.name}]`)
-      }else{
-        //开启竞技场
-        await executeGameCommand(token.id, 'arena_startarea', {}, '开始竞技场')
-        for (let i = 1; i <= 3; i++) {
-              let targets
-              try {
-                targets = await executeGameCommand(token.id, 'arena_getareatarget', {}, `获取竞技场目标${i}`)
-              } catch (err:any) {
-                console.warn(`BulkDailyTask: 竞技场战斗${i} - 获取对手失败: ${err.message} [${token.name}]`,err)
-                break
+      try {
+          const hour = new Date().getHours()
+          if (hour < 8) {
+                console.warn(`BulkDailyTask: 当前时间未到8点，跳过竞技场战斗 [${token.name}]`)
+          } else if (hour > 22) {
+                console.warn(`BulkDailyTask: 当前时间已过22点，跳过竞技场战斗 [${token.name}]`)
+          }else{
+            //开启竞技场
+            await executeGameCommand(token.id, 'arena_startarea', {}, '开始竞技场')
+                // Fetch Battle Version
+              const res = await executeGameCommand(token.id, "fight_startlevel", {},'开始竞技场版本', 5000);
+              if (res?.battleData?.version) {
+                tokenStore.setBattleVersion(res.battleData.version);
               }
+            for (let i = 1; i <= 3; i++) {
+                  let targets
+                  try {
+                    targets = await executeGameCommand(token.id, 'arena_getareatarget', {}, `获取竞技场目标${i}`)
+                  } catch (err:any) {
+                    console.warn(`BulkDailyTask: 竞技场战斗${i} - 获取对手失败: ${err.message} [${token.name}]`,err)
+                    break
+                  }
 
-              const targetId = pickArenaTargetId(targets)
-              if (targetId) {
-                await executeGameCommand(token.id, 'fight_startareaarena', { targetId }, `竞技场战斗${i}`, 10000)
-              } else {
-                console.warn(`BulkDailyTask: 竞技场战斗${i} - 未找到目标: ${JSON.stringify(targets)} [${token.name}]`)
-              }
-              await new Promise(resolve => setTimeout(resolve, 1000))
+                  const targetId = pickArenaTargetId(targets)
+                  if (targetId) {
+                    await executeGameCommand(token.id, 'fight_startareaarena', { targetId }, `竞技场战斗${i}`, 10000)
+                  } else {
+                    console.warn(`BulkDailyTask: 竞技场战斗${i} - 未找到目标: ${JSON.stringify(targets)} [${token.name}]`)
+                  }
+                  await new Promise(resolve => setTimeout(resolve, 1000))
+            }
+          }
+        }catch (e) {
+          console.warn(`BulkDailyTask: 竞技场失败 [${token.name}]`, e)
         }
-      }
     }
 
       if (!isTaskCompleted(6) && isTodayAvailable(statisticsTime['buy:gold'])) {
@@ -340,6 +351,29 @@ const performBulkDailyTask = async (message:any) => {
 
       try { await executeGameCommand(token.id, 'task_claimdailyreward', {}, '领取日常任务奖励') } catch (e) { console.warn('日常奖励领取失败', e) }
       try { await executeGameCommand(token.id, 'task_claimweekreward', {}, '领取周常任务奖励') } catch (e) { console.warn('周常奖励领取失败', e) }
+
+      // 邪将塔每日任务
+      for(let round=1;round<=10;round++){
+        const evotowerInfo = await executeGameCommand(token.id, 'evotower_getinfo', {}, `获取邪将塔信息`, 8000)
+        if(evotowerInfo && evotowerInfo?.evoTower?.energy > 0){
+          try {
+            const currentTower=evotowerInfo && evotowerInfo?.evoTower?.towerId
+            const rewardTowerId=evotowerInfo && evotowerInfo?.evoTower?.rewardTowerId
+            if(currentTower<=rewardTowerId*10){
+              try {await executeGameCommand(token.id, 'evotower_claimreward', {}, '领取邪将塔奖励', 8000)}catch(e){console.warn('领取邪将塔奖励失败', e)} 
+            }
+            try {await executeGameCommand(token.id, 'evotower_readyfight', {}, '邪将塔准备战斗', 8000)} catch(e){console.warn('邪将塔准备战斗失败', e)}
+            await executeGameCommand(token.id, 'evotower_fight', { battleNum: 1, winNum: 1 }, '邪将塔战斗', 8000)
+          } catch (e) { console.warn('邪将塔战斗失败', e) }
+        }else{
+          break
+        }
+        await waitForSeconds(0.3)
+      }
+      // 领取邪将塔任务奖励
+      for (let taskId = 1; taskId <= 3; taskId++) {
+        try { await executeGameCommand(token.id, 'evotower_claimtask', { taskId:taskId }, `领取邪将塔任务奖励${taskId}`, 5000) } catch (e) { console.warn('领取邪将塔任务奖励失败', e) }
+      }
 
       await waitForSeconds(10)
       tokenStore.closeWebSocketConnection(token.id)

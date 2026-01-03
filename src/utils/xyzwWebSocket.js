@@ -245,6 +245,11 @@ export function registerDefaultCommands(reg) {
 
     //怪异塔
     .register("mergebox_claimfreeenergy", { actType: 1})
+    .register("evotower_getinfo")
+    .register("evotower_readyfight")
+    .register("evotower_fight", { battleNum: 1, winNum: 1 })
+    .register("evotower_claimtask", { taskId: 1 })
+    .register("evotower_claimreward")
 
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
@@ -871,6 +876,8 @@ export class XyzwWebSocketClient {
       // 特殊响应映射 - 有些命令有独立响应，有些用同步响应
       'task_claimdailyrewardresp': 'task_claimdailyreward',
       'task_claimweekrewardresp': 'task_claimweekreward',
+      //邪将塔
+      'evotowerinforesp': 'evotower_getinfo',
 
       // 同步响应映射（优先级低）
       'syncresp': ['system_mysharecallback', 'task_claimdailypoint'],
