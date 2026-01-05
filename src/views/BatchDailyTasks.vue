@@ -2008,7 +2008,7 @@ const batchSmartSendCar = async () => {
           addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]满足条件，直接发车`, type: 'info' })
           await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
             carId: String(car.id),
-            helperId: getCarHelper(car,token),
+            helperId: await getCarHelper(car,token),
             text: '',
             isUpgrade: false
           }, 10000)
@@ -2026,7 +2026,7 @@ const batchSmartSendCar = async () => {
           addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]不满足条件且无刷新次数，直接发车`, type: 'warning' })
           await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
             carId: String(car.id),
-            helperId: getCarHelper(car,token),
+            helperId: await getCarHelper(car,token),
             text: '',
             isUpgrade: false
           }, 10000)
@@ -2060,7 +2060,7 @@ const batchSmartSendCar = async () => {
             addLog({ time: new Date().toLocaleTimeString(), message: `刷新后车辆[${gradeLabel(car.color)}]满足条件，发车`, type: 'success' })
             await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
               carId: String(car.id),
-              helperId: getCarHelper(car,token),
+              helperId: await getCarHelper(car,token),
               text: '',
               isUpgrade: false
             }, 10000)
@@ -2076,7 +2076,7 @@ const batchSmartSendCar = async () => {
             addLog({ time: new Date().toLocaleTimeString(), message: `刷新后车辆[${gradeLabel(car.color)}]仍不满足条件且无刷新次数，发车`, type: 'warning' })
             await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
               carId: String(car.id),
-              helperId: getCarHelper(car,token),
+              helperId: await getCarHelper(car,token),
               text: '',
               isUpgrade: false
             }, 10000)
