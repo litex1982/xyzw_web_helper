@@ -1904,13 +1904,10 @@ const gradeLabel = (color) => {
 
 const isBigPrize = (rewards) => {
   const bigPrizes = [
-    { type: 3, itemId: 3201, value: 10 },
-    { type: 3, itemId: 1001, value: 10 },
-    { type: 3, itemId: 1022, value: 2000 },
-    { type: 2, itemId: 0, value: 2000 },
-    { type: 3, itemId: 1023, value: 5 },
-    { type: 3, itemId: 1022, value: 2500 },
-    { type: 3, itemId: 1001, value: 12 }
+    {type: 3, itemId: 1022, value: 2000}, // 2000白玉
+    {type: 2, itemId: 0, value: 2000}, // 2000金砖
+    {type: 3, itemId: 1023, value: 5}, // 5彩玉
+    {type: 3, itemId: 1022, value: 2500}, // 2500白玉
   ]
   if (!Array.isArray(rewards)) return false
   return bigPrizes.some(p => rewards.find(r => r.type === p.type && r.itemId === p.itemId && Number(r.value || 0) >= p.value))
@@ -2015,7 +2012,12 @@ const batchSmartSendCar = async () => {
 
       // 1. Fetch Car Info
       addLog({ time: new Date().toLocaleTimeString(), message: `获取车辆信息...`, type: 'info' })
-      const res = await tokenStore.sendMessageWithPromise(tokenId, 'car_getrolecar', {}, 10000)
+      let res = await tokenStore.sendMessageWithPromise(tokenId, 'car_getrolecar', {}, 10000)
+      //已发车数量
+      let sentCarCount = Number(res?.roleCar?.sendCnt || 0)
+      if(sentCarCount>=4){
+        addLog({ time: new Date().toLocaleTimeString(), message: `已达发车上限，跳过`, type: 'info' })
+        continue;} //每天发车上限4辆，跳过
       let carList = normalizeCars(res?.body ?? res)
 
       // 2. Fetch Tickets
@@ -2026,6 +2028,26 @@ const batchSmartSendCar = async () => {
         refreshTickets = Number(qty || 0)
         addLog({ time: new Date().toLocaleTimeString(), message: `剩余车票: ${refreshTickets}`, type: 'info' })
       } catch (_) { }
+
+      // 先检查是否有可发车的车辆
+      for (const car of carList) {
+        if (shouldSendCar(car, refreshTickets)) {
+          addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]满足条件，直接发车`, type: 'info' })
+          await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
+            carId: String(car.id),
+            helperId: await getCarHelper(car,token),
+            text: '',
+            isUpgrade: false
+          }, 10000)
+          await new Promise(r => setTimeout(r, 500))
+        }
+      }
+      //重新刷新车辆信息
+      res = await tokenStore.sendMessageWithPromise(tokenId, 'car_getrolecar', {}, 10000)
+      //已发车数量
+      sentCarCount = Number(res?.roleCar?.sendCnt || 0)
+      if(sentCarCount>=4){continue;} //每天发车上限4辆，跳过
+      carList = normalizeCars(res?.body ?? res)
 
       // 3. Process Cars
       for (const car of carList) {
