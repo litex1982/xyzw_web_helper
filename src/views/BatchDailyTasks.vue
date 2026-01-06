@@ -1931,6 +1931,29 @@ const shouldSendCar = (car, tickets) => {
   return color >= 4 || racingTickets >= 2 || isBigPrize(rewards)
 }
 
+const helperPool =[
+  "192680112",//Mr. Yao
+  "524352317",//拿不了鱼了
+  "523240980",//Kevin
+  "523596552",//林玲二
+  "653406249",//打雷了下雨了
+  "523261055",//林玲1
+  "439965683",//Mr. Yao小号
+  "524379973",//柯南
+  "609980649",//老华
+]
+
+const carResearch = async (token) =>{
+  //升级5次
+  for(let researchCnt=0;researchCnt<5;researchCnt++){
+        try {
+      const resp = await tokenStore.sendMessageWithPromise(token.id, 'car_research', {researchId:1}, 10000)}
+      catch(e) {
+        message.error('发车科技升级失败：',e)
+      } 
+   }
+}
+
 const getCarHelper = async (car, token) => {
   try {
     const color = Number(car?.color || 0)
@@ -1939,7 +1962,7 @@ const getCarHelper = async (car, token) => {
     // 拉取俱乐部成员护卫可用次数
     const resp = await tokenStore.sendMessageWithPromise(token.id, 'car_getmemberhelpingcnt', {}, 10000)
     const memberHelpingCntMap = resp?.body?.memberHelpingCntMap || resp?.memberHelpingCntMap || {}
-    const helperId = Object.entries(memberHelpingCntMap).filter(([uid, count]) => count < 4)
+    const helperId = Object.entries(memberHelpingCntMap).filter(([uid, count]) => count < 4).filter(([uid, count])=>helperPool.includes(uid))
     .sort(([uidA], [uidB]) => Number(uidA) - Number(uidB))
     ?.at(0)?.[0];
   return helperId;
@@ -2141,6 +2164,7 @@ const batchClaimCars = async () => {
       let claimedCount = 0
       for (const car of carList) {
         if (canClaim(car)) {
+          await carResearch(token);
           try {
             await tokenStore.sendMessageWithPromise(tokenId, 'car_claim', { carId: String(car.id) }, 10000)
             claimedCount++

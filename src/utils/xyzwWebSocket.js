@@ -231,6 +231,7 @@ export function registerDefaultCommands(reg) {
     .register("car_claim", { carId: 0 })
     .register("car_send", { carId: 0, helperId: 0, text: "" })
     .register("car_getmemberhelpingcnt")
+    .register("car_research",{researchId:1})
 
     // 咸王宝库
     .register("matchteam_getroleteaminfo")
@@ -869,6 +870,7 @@ export class XyzwWebSocketClient {
       'activity_warorderclaimresp': 'activity_recyclewarorderrewardclaim',
       'arena_getarearankresp': 'arena_getarearank',
       'bosstower_gethelprankresp': 'bosstower_gethelprank',
+      'car_researchresp':'car_research',
       // 特殊响应映射 - 有些命令有独立响应，有些用同步响应
       'task_claimdailyrewardresp': 'task_claimdailyreward',
       'task_claimweekrewardresp': 'task_claimweekreward',
