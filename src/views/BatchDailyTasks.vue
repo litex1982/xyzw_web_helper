@@ -1962,10 +1962,17 @@ const getCarHelper = async (car, token) => {
     // 拉取俱乐部成员护卫可用次数
     const resp = await tokenStore.sendMessageWithPromise(token.id, 'car_getmemberhelpingcnt', {}, 10000)
     const memberHelpingCntMap = resp?.body?.memberHelpingCntMap || resp?.memberHelpingCntMap || {}
-    const helperId = Object.entries(memberHelpingCntMap).filter(([uid, count]) => count < 4).filter(([uid, count])=>helperPool.includes(uid))
-    .sort(([uidA], [uidB]) => Number(uidA) - Number(uidB))
-    ?.at(0)?.[0];
-  return helperId;
+    //优先从Pool拉取护卫，如果没有的话再从成员列表拉取
+    const helperCandidate = Object.entries(memberHelpingCntMap).filter(([uid, count]) => count < 4)
+    .sort(([uidA], [uidB]) => Number(uidA) - Number(uidB));
+    const filteredCandiate=helperCandidate.filter(([uid, count])=>helperPool.includes(uid))
+    if(filteredCandiate.length>0){
+      const helperId = filteredCandiate?.at(0)?.[0];
+      return helperId;
+    }else{
+      const helperId =  helperCandidate?.at(0)?.[0];
+      return helperId;
+    }
   } catch (e) {
     message.error('获取护卫数据失败：' + (e.message || '未知错误'))
   } 
