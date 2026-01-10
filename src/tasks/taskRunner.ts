@@ -218,6 +218,14 @@ const performBulkDailyTask = async (message:any) => {
         }
       }
 
+      if (!isTaskCompleted(7) && settings.openBox) {
+        try {
+            await executeGameCommand(token.id, 'item_openbox', { itemId: 2001, number: 10 }, '开启木质宝箱10个')
+          } catch (e) {
+            console.warn(`BulkDailyTask: 开启木质宝箱失败 [${token.id}]`, e)
+          }
+      }
+
       if (!isTaskCompleted(14) && settings.claimBottle) {
         try {
           await executeGameCommand(token.id, 'bottlehelper_claim', {}, '领取盐罐奖励')
@@ -377,7 +385,7 @@ const performBulkDailyTask = async (message:any) => {
         try { await executeGameCommand(token.id, 'evotower_claimtask', { taskId:taskId }, `领取邪将塔任务奖励${taskId}`, 5000) } catch (e) { console.warn('领取邪将塔任务奖励失败', e) }
       }
 
-      await waitForSeconds(10)
+      await waitForSeconds(5)
       tokenStore.closeWebSocketConnection(token.id)
       if (message && message.success) message.success(`${token.name} 执行任务完成`)
 
