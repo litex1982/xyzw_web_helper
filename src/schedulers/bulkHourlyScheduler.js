@@ -45,6 +45,7 @@ const releaseLock = () => {
 // 检查间隔：1 分钟
 const CHECK_INTERVAL_MS = 1 * 60 * 1000
 // 要保证执行的时间点（24 小时制小时数）
+//const SCHEDULE_HOURS = [1, 4, 7, 10, 13, 16, 19, 22]
 const SCHEDULE_HOURS = [1, 7, 13, 19, 23]
 // localStorage key（带版本号以便未来迁移）
 const STORAGE_KEY = 'bulkHourlyRunRecords_v1'
@@ -172,6 +173,18 @@ const processTokensForHourlyTask = async (token, message) => {
       }, 1200)
     } catch (e) {
       if (message && message.error) message.error('领取挂机奖励失败: ' + (e?.message || '未知错误'))
+    }
+
+    await waitForSeconds(2)
+
+    //领取武功挂机奖励
+    try {
+      tokenStore.sendMessage(tokenId, 'legacy_claimhangup')
+      setTimeout(() => {
+        if (message && message.success) message.success('武功挂机奖励领取完成')
+      }, 1200)
+    } catch (e) {
+      if (message && message.error) message.error('领取武功挂机奖励失败: ' + (e?.message || '未知错误'))
     }
 
     await waitForSeconds(5)

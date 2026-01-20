@@ -248,6 +248,9 @@ export function registerDefaultCommands(reg) {
     .register("evotower_claimtask", { taskId: 1 })
     .register("evotower_claimreward")
 
+    //武功
+    .register("legacy_claimhangup")
+
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
       throw new Error("fight_startareaarena requires targetId in params")
@@ -846,7 +849,8 @@ export class XyzwWebSocketClient {
       'fight_starttowerresp': 'fight_starttower',
       'evotowerinforesp': 'evotower_getinfo',
       'evotower_fightresp': 'evotower_fight',
-	  'item_openpackresp': 'item_openpack',
+	    'item_openpackresp': 'item_openpack',
+      'legacy_claimhangupresp': 'legacy_claimhangup',
       // 咸王宝库
       'matchteam_getroleteaminforesp': 'matchteam_getroleteaminfo',
       'bosstower_getinforesp': 'bosstower_getinfo',

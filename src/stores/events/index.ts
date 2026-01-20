@@ -64,7 +64,7 @@ onSome(['system_newchatmessagenotify', 'system_newchatmessagenotifyresp'], (data
     gameLogger.debug('聊天消息响应为空或格式不正确');
     return;
   }
-  chatMsgList.value.push(body.chatMessage);
+  //chatMsgList.value.push(body.chatMessage);
 });
 
 onSome(['role_getroleinforesp', 'role_getroleinfo'], (data: Session) => {

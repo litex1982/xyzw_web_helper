@@ -1003,6 +1003,7 @@ const resetBottles = async () => {
 
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
 
   isRunning.value = false
@@ -1062,6 +1063,7 @@ const claimHangUpRewards = async () => {
 
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
 
   isRunning.value = false
@@ -1110,6 +1112,7 @@ const batchbaoku13 = async () => {
     }
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
   isRunning.value = false
   currentRunningTokenId.value = null
@@ -1152,6 +1155,7 @@ const batchbaoku45 = async () => {
     }
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
   isRunning.value = false
   currentRunningTokenId.value = null
@@ -1196,6 +1200,7 @@ const batchmengjing = async () => {
     }
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
   isRunning.value = false
   currentRunningTokenId.value = null
@@ -1232,6 +1237,7 @@ const batchlingguanzi = async () => {
     }
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
   isRunning.value = false
   currentRunningTokenId.value = null
@@ -1268,6 +1274,7 @@ const batchclubsign = async () => {
     }
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
   isRunning.value = false
   currentRunningTokenId.value = null
@@ -1327,6 +1334,7 @@ const batcharenafight = async () => {
     }
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
   isRunning.value = false
   currentRunningTokenId.value = null
@@ -1366,6 +1374,7 @@ const batchAddHangUpTime = async () => {
     }
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
   isRunning.value = false
   currentRunningTokenId.value = null
@@ -1521,6 +1530,7 @@ const climbTower = async () => {
 
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
 
   isRunning.value = false
@@ -1623,6 +1633,7 @@ const batchStudy = async () => {
 
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
 
   isRunning.value = false
@@ -1746,6 +1757,7 @@ const batchTopUpFish = async () => {
     }
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
   isRunning.value = false
   currentRunningTokenId.value = null
@@ -1872,6 +1884,7 @@ const batchTopUpArena = async () => {
     }
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
   isRunning.value = false
   currentRunningTokenId.value = null
@@ -2015,9 +2028,9 @@ const batchSmartSendCar = async () => {
       let res = await tokenStore.sendMessageWithPromise(tokenId, 'car_getrolecar', {}, 10000)
       //已发车数量
       let sentCarCount = Number(res?.roleCar?.sendCnt || 0)
-      if(sentCarCount>=4){
+      /*if(sentCarCount>=4){
         addLog({ time: new Date().toLocaleTimeString(), message: `已达发车上限，跳过`, type: 'info' })
-        continue;} //每天发车上限4辆，跳过
+        continue;}*/ //每天发车上限4辆，跳过
       let carList = normalizeCars(res?.body ?? res)
 
       // 2. Fetch Tickets
@@ -2045,8 +2058,8 @@ const batchSmartSendCar = async () => {
       //重新刷新车辆信息
       res = await tokenStore.sendMessageWithPromise(tokenId, 'car_getrolecar', {}, 10000)
       //已发车数量
-      sentCarCount = Number(res?.roleCar?.sendCnt || 0)
-      if(sentCarCount>=4){continue;} //每天发车上限4辆，跳过
+      /*sentCarCount = Number(res?.roleCar?.sendCnt || 0)
+      if(sentCarCount>=4){continue;} *///每天发车上限4辆，跳过
       carList = normalizeCars(res?.body ?? res)
 
       // 3. Process Cars
@@ -2151,6 +2164,7 @@ const batchSmartSendCar = async () => {
 
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
 
   isRunning.value = false
@@ -2220,6 +2234,7 @@ const batchClaimCars = async () => {
 
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
 
   isRunning.value = false
@@ -2338,6 +2353,7 @@ const batchClaimBoxPointReward = async () => {
 
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
 
   isRunning.value = false
@@ -2403,6 +2419,7 @@ const batchOpenBox = async () => {
 
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
 
   isRunning.value = false
@@ -2467,6 +2484,7 @@ const batchFish = async () => {
 
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
 
   isRunning.value = false
@@ -2529,6 +2547,7 @@ const batchRecruit = async () => {
 
     currentProgress.value = 100
     await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
   }
 
   isRunning.value = false
