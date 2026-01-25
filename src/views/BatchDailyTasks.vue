@@ -86,6 +86,10 @@
               :disabled="isRunning || selectedTokens.length === 0 || !isarenaActivityOpen">
               一键竞技场补齐
             </n-button>
+            <n-button size="small" @click="batchEvilTower"
+              :disabled="isRunning || selectedTokens.length === 0">
+              一键邪将塔
+            </n-button>
           </n-space>
           <n-space vertical>
             <n-checkbox :checked="isAllSelected" :indeterminate="isIndeterminate" @update:checked="handleSelectAll">
@@ -450,7 +454,8 @@ const availableTasks = [
   { label: '一键宝库4,5层', value: 'batchbaoku45' },
   { label: '一键梦境', value: 'batchmengjing' },
   { label: '一键俱乐部签到', value: 'batchclubsign' },
-  { label: '一键竞技场战斗3次', value: 'batcharenafight' }
+  { label: '一键竞技场战斗3次', value: 'batcharenafight' },
+  { label: '一键邪将塔', value: 'batchEvilTower' }
 ]
 
 // Task table columns configuration for the tasks list modal
@@ -1160,6 +1165,53 @@ const batchbaoku45 = async () => {
   isRunning.value = false
   currentRunningTokenId.value = null
   message.success('批量宝库结束')
+}
+
+const batchEvilTower= async () => {
+  if (selectedTokens.value.length === 0) return
+  isRunning.value = true
+  shouldStop.value = false
+  logs.value = []
+  // Reset status
+  selectedTokens.value.forEach(id => {
+    tokenStatus.value[id] = 'waiting'
+  })
+  for (const tokenId of selectedTokens.value) {
+    if (shouldStop.value) break
+    currentRunningTokenId.value = tokenId
+    tokenStatus.value[tokenId] = 'running'
+    currentProgress.value = 0
+    const token = tokens.value.find(t => t.id === tokenId)
+    try {
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== 开始一键邪将塔: ${token.name} ===`, type: 'info' })
+      await ensureConnection(tokenId)
+        let evotowerInfo = await tokenStore.sendMessageWithPromise(token.id, 'evotower_getinfo', {})
+        while(evotowerInfo && evotowerInfo?.evoTower?.energy > 0){
+            if (shouldStop.value) break
+            const currentTower=evotowerInfo && evotowerInfo?.evoTower?.towerId
+            if(currentTower%10===0){
+              try {await tokenStore.sendMessageWithPromise(token.id, 'evotower_claimreward', {})}catch(e){console.warn('领取邪将塔奖励失败', e)} 
+            }
+            await tokenStore.sendMessageWithPromise(token.id, 'evotower_readyfight', {})
+            await tokenStore.sendMessageWithPromise(token.id, 'evotower_fight', { battleNum: 1, winNum: 1 })
+            addLog({ time: new Date().toLocaleTimeString(), message: `=== ${token.name} 邪将塔战斗${currentTower}已完成, 体力${evotowerInfo?.evoTower?.energy} ===`, type: 'success' })
+          await new Promise(r => setTimeout(r, 500))
+          evotowerInfo = await tokenStore.sendMessageWithPromise(token.id, 'evotower_getinfo', {})
+        }
+      tokenStatus.value[tokenId] = 'completed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== ${token.name} 邪将塔战斗已完成 ===`, type: 'success' })
+    } catch (error) {
+      console.error(error)
+      tokenStatus.value[tokenId] = 'failed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `邪将塔战斗失败: ${error.message || '未知错误'}`, type: 'error' })
+    }
+    currentProgress.value = 100
+    await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
+  }
+  isRunning.value = false
+  currentRunningTokenId.value = null
+  message.success('批量邪将塔战斗结束')
 }
 
 const batchmengjing = async () => {
