@@ -1175,7 +1175,7 @@
             <n-input-number
               v-model:value="giftQuantity"
               :min="1"
-              :max="1000"
+              :max="10000"
               :step="1"
               placeholder="请输入赠送数量"
             />
@@ -2048,7 +2048,7 @@ const recipientIdInput = ref("");
 const recipientIdError = ref("");
 const recipientInfo = ref(null);
 const isQueryingRecipient = ref(false);
-const giftQuantity = ref(10);
+const giftQuantity = ref(10000);
 const securityPassword = ref(""); // 安全密码
 // 头像加载状态
 const isAvatarLoading = ref(false);
@@ -7762,9 +7762,9 @@ const batchLegacyGiftSendEnhanced = async (isScheduledTask = false) => {
             message: `=== ${token.name} 功法残卷不足，当前拥有: ${legacyFragmentCount}，需要: ${giftConfig.quantity} ===`,
             type: "error",
           });
-          tokenStatus.value[tokenId] = "failed";
-          totalFailed++;
-          break;
+          //tokenStatus.value[tokenId] = "failed";
+          //totalFailed++;
+          //break;
         }
 
         // 3. 发送role_commitpassword命令，用于解除验证安全密码
@@ -7817,7 +7817,8 @@ const batchLegacyGiftSendEnhanced = async (isScheduledTask = false) => {
           tokenId,
           "legacy_sendgift",
           {
-            itemCnt: giftConfig.quantity,
+            //赠送legacyFragmentCount 和 giftConfig.quantity的小的值
+            itemCnt: Math.min(giftConfig.quantity,legacyFragmentCount),
             legacyUIds: [],
             targetId: giftConfig.recipientId,
           },
