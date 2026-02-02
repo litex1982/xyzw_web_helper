@@ -4612,13 +4612,19 @@ const handleSelectAll = (checked) => {
 };
 
 const remarkChoices = computed(() => {
-  return Array.from(
-    new Set(
-      tokens.value
-        .map((t) => (typeof t.remark === "string" ? t.remark.trim() : t.remark))
-        .filter((r) => r !== null && r !== undefined && r !== "")
-    )
-  );
+  const choices = new Set();
+  tokens.value.forEach((t) => {
+    if (t == null) return;
+    const remark = t.remark;
+    if (remark === null || remark === undefined) return;
+    // 把分号 (英文; 和中文；) 作为分隔符，拆分并去重、去空白
+    String(remark)
+      .split(/;|；/)
+      .map((s) => s.trim())
+      .filter((s) => s !== "")
+      .forEach((s) => choices.add(s));
+  });
+  return Array.from(choices);
 });
 
 const remarkFilter = ref("");
@@ -4627,16 +4633,26 @@ const openSelectRemarkModal = () => {
   showSelectRemarkModal.value = true;
 };
 const handleSelectRemark = () => {
-  // 根据remarkFilter切换选中状态
-  const filtertokens = tokens.value.filter((t) => t.remark === remarkFilter.value);
-  if (filtertokens.length > 0)  {
-      // 选中所有匹配的token
-      filtertokens.forEach((t) => {
-        if (!selectedTokens.value.includes(t.id)) {
-          selectedTokens.value.push(t.id);
-        }
-      });
-    }
+  const target = (remarkFilter.value || "").trim();
+  if (!target) {
+    showSelectRemarkModal.value = false;
+    return;
+  }
+
+  const matched = tokens.value.filter((t) => {
+    if (!t || t.remark == null) return false;
+    // 用英文分号和中文分号拆分，去空格后比较任意一项相等即可匹配
+    const parts = String(t.remark)
+      .split(/;|；/)
+      .map((s) => s.trim())
+      .filter((s) => s !== "");
+    return parts.some((p) => p === target);
+  });
+
+  matched.forEach((t) => {
+    if (!selectedTokens.value.includes(t.id)) selectedTokens.value.push(t.id);
+  });
+
   showSelectRemarkModal.value = false;
 };
 
