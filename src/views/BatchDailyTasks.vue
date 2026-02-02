@@ -361,6 +361,11 @@
             >
               全选
             </n-checkbox>
+            <n-button
+              @click="openSelectRemarkModal"
+            >
+              全选备注
+            </n-button>
             <n-checkbox-group v-model:value="selectedTokens">
               <n-grid
                 :x-gap="12"
@@ -1747,6 +1752,30 @@
           >
         </div>
       </div>
+    </n-modal>
+    <n-modal  v-model:show="showSelectRemarkModal"
+      preset="card"
+      title="过滤备注"
+      style="width: 90%; max-width: 400px">
+        <div
+            class="setting-item"
+            style="
+              flex-direction: row;
+              justify-content: space-between;
+              align-items: center;
+            "
+          >
+            <label class="setting-label">备注</label>
+            <n-select
+              v-model:value="remarkFilter"
+              size="small"
+              :options="remarkChoices.map((r) => ({ label: r, value: r }))" />
+          </div>
+        <div class="modal-actions" style="margin-top: 20px; text-align: right">
+          <n-button type="primary" @click="handleSelectRemark"
+            >保存设置</n-button
+          >
+        </div>
     </n-modal>
   </div>
 </template>
@@ -4580,6 +4609,35 @@ const handleSelectAll = (checked) => {
   } else {
     selectedTokens.value = [];
   }
+};
+
+const remarkChoices = computed(() => {
+  return Array.from(
+    new Set(
+      tokens.value
+        .map((t) => (typeof t.remark === "string" ? t.remark.trim() : t.remark))
+        .filter((r) => r !== null && r !== undefined && r !== "")
+    )
+  );
+});
+
+const remarkFilter = ref("");
+const showSelectRemarkModal = ref(false);
+const openSelectRemarkModal = () => {
+  showSelectRemarkModal.value = true;
+};
+const handleSelectRemark = () => {
+  // 根据remarkFilter切换选中状态
+  const filtertokens = tokens.value.filter((t) => t.remark === remarkFilter.value);
+  if (filtertokens.length > 0)  {
+      // 选中所有匹配的token
+      filtertokens.forEach((t) => {
+        if (!selectedTokens.value.includes(t.id)) {
+          selectedTokens.value.push(t.id);
+        }
+      });
+    }
+  showSelectRemarkModal.value = false;
 };
 
 const getStatusType = (tokenId) => {
