@@ -93,6 +93,13 @@
             <n-button size="small" @click="legion_storebuygoods" :disabled="isRunning || selectedTokens.length === 0">
               一键购买四圣碎片
             </n-button>
+            <n-button
+              size="small"
+              @click="batchLegacyClaim"
+              :disabled="isRunning || selectedTokens.length === 0"
+            >
+              批量功法残卷领取
+            </n-button>
             <n-button size="small" @click="showLegacyGiftModal = true" :disabled="isRunning || selectedTokens.length === 0">
               批量功法残卷赠送
             </n-button>
@@ -689,6 +696,7 @@ const availableTasks = [
   { label: '一键竞技场战斗3次', value: 'batcharenafight' },
   { label: '一键邪将塔', value: 'batchEvilTower' },
   { label: "一键购买四圣碎片", value: "legion_storebuygoods" },
+  { label: "批量领取功法残卷", value: "batchLegacyClaim" },
   { label: "批量赠送功法残卷", value: "batchLegacyGiftSendEnhanced" },
 ]
 
@@ -2586,6 +2594,30 @@ const isBigPrize = (rewards) => {
   return bigPrizes.some(p => rewards.find(r => r.type === p.type && r.itemId === p.itemId && Number(r.value || 0) >= p.value))
 }
 
+const CalculatePrizeTotalPrice = (rewards, color) => {
+  const prizeUnitPrice = [
+    {type: 3, itemId: 1022, value: 2}, // 白玉
+    {type: 2, itemId: 0, value: 1}, // 金砖
+    {type: 3, itemId: 1023, value: 500}, // 彩玉
+    {type: 3, itemId: 35002, value: 400}, // 刷新券
+    {type: 3, itemId: 3201, value: 150}, // 招募令
+    {type: 3, itemId: 1001, value: 150}, // 万能碎片
+  ]
+  if (!Array.isArray(rewards)) return 0
+  let totalPrice=0
+  prizeUnitPrice.forEach(p=>{
+    //rewards内可能有多个条目匹配，需要就算所有匹配的价值
+    const prizes = rewards.filter(r => r.type === p.type && r.itemId === p.itemId);
+    prizes.forEach(prize => {
+      totalPrice += Math.floor(Number(prize.value || 0) * p.value);
+    });
+  })
+  if(color>=5){
+    totalPrice=Math.floor(totalPrice*1.1) //红车及以上奖励价值提升10%
+  }
+  return totalPrice
+}
+
 const countRacingRefreshTickets = (rewards) => {
   if (!Array.isArray(rewards)) return 0
   return rewards.reduce((acc, r) => acc + ((r.type === 3 && r.itemId === 35002) ? Number(r.value || 0) : 0), 0)
@@ -2595,9 +2627,13 @@ const shouldSendCar = (car, tickets) => {
   const color = Number(car?.color || 0)
   const rewards = Array.isArray(car?.rewards) ? car.rewards : []
   const racingTickets = countRacingRefreshTickets(rewards)
-  if (tickets >= 6) {
+  //将奖励转换成金砖计算
+  if(tickets >=20){
+    const totalPrizePrice = CalculatePrizeTotalPrice(rewards, color)
+    return totalPrizePrice >= 2000
+  } else if (tickets >= 6) {
     return color >= 5 || racingTickets >= 4 || isBigPrize(rewards)
-  }
+  } else
   return color >= 4 || racingTickets >= 2 || isBigPrize(rewards)
 }
 
@@ -3214,6 +3250,60 @@ const batchRecruit = async () => {
   currentRunningTokenId.value = null
   message.success('批量招募结束')
 }
+
+const batchLegacyClaim = async () => {
+  if (selectedTokens.value.length === 0) return
+
+  isRunning.value = true
+  shouldStop.value = false
+  logs.value = []
+
+  selectedTokens.value.forEach(id => {
+    tokenStatus.value[id] = 'waiting'
+  })
+
+  for (const tokenId of selectedTokens.value) {
+    if (shouldStop.value) break
+
+    currentRunningTokenId.value = tokenId
+    tokenStatus.value[tokenId] = 'running'
+    currentProgress.value = 0
+
+    const token = tokens.value.find(t => t.id === tokenId)
+
+    try {
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== 开始领取功法残卷: ${token.name} ===`, type: 'info' })
+
+      await ensureConnection(tokenId)
+
+      const LegacyClaimHangUpResp = await tokenStore.sendMessageWithPromise(
+        tokenId,
+        "legacy_claimhangup",
+        {},
+        5000,
+      );
+      addLog({
+        time: new Date().toLocaleTimeString(),
+        message: `=== ${token.name} 成功领取功法残卷${LegacyClaimHangUpResp.reward[0].value}，共有${LegacyClaimHangUpResp.role.items[37007].quantity}个`,
+        type: "success",
+      });
+      tokenStatus.value[tokenId] = "completed";
+
+    } catch (error) {
+      console.error(error)
+      tokenStatus.value[tokenId] = 'failed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `领取功法残卷失败: ${error.message}`, type: 'error' })
+    }
+
+    currentProgress.value = 100
+    await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
+  }
+
+  isRunning.value = false
+  currentRunningTokenId.value = null
+  message.success('批量领取功法残卷结束')
+};
 
 // 增强版批量赠送功法残卷（含完善的验证和错误处理）
 const batchLegacyGiftSendEnhanced = async () => {
