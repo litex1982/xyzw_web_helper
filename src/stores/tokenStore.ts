@@ -20,6 +20,7 @@ declare interface TokenData {
   token: string; // 原始Base64 token
   wsUrl: string | null; // 可选的自定义WebSocket URL
   server: string;
+  remark?: string; // 备注信息
 }
 
 declare interface WebSocketConnection {
@@ -180,6 +181,7 @@ export const useTokenStore = defineStore('tokens', () => {
       token: tokenData.token, // 保存原始Base64 token
       wsUrl: tokenData.wsUrl || null, // 可选的自定义WebSocket URL
       server: tokenData.server || '',
+      remark: tokenData.remark || "", // 备注信息
       level: tokenData.level || 1,
       profession: tokenData.profession || '',
       createdAt: new Date().toISOString(),
@@ -194,7 +196,7 @@ export const useTokenStore = defineStore('tokens', () => {
     return newToken
   }
 
-  const updateToken = (tokenId: string, updates: TokenData) => {
+  const updateToken = (tokenId: string, updates:  Partial<TokenData>) => {
     const index = gameTokens.value.findIndex(token => token.id === tokenId)
     if (index !== -1) {
       gameTokens.value[index] = {

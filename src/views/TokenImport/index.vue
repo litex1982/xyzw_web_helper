@@ -58,13 +58,13 @@
             </n-radio-group>
           </n-space>
           <div class="header-actions">
-            <n-button v-if="tokenStore.selectedToken" type="success" @click="goToDashboard">
+            <n-button type="success" @click="goToDashboard">
               <template #icon>
                 <n-icon>
                   <Home />
                 </n-icon>
               </template>
-              返回控制台
+              批量任务
             </n-button>
 
             <n-button v-if="!showImportForm" type="primary" @click="showImportForm = true">
@@ -123,6 +123,29 @@
                 <span class="token-label">Token:</span>
                 <code class="token-value">{{ maskToken(token.token) }}</code>
               </div>
+                            
+              <!-- 备注信息 -->
+              <div v-if="editingRemark === token.id" class="token-remark token-remark-edit" @click.stop>
+                <span class="remark-label">备注：</span>
+                <n-input 
+                  v-model:value="tempRemarks[token.id]" 
+                  type="textarea" 
+                  :rows="2" 
+                  placeholder="添加备注信息..." 
+                  @blur="saveRemark(token)" 
+                  @keyup.enter="saveRemark(token)" 
+                  @keyup.esc="cancelEditRemark()" 
+                  autofocus
+                />
+              </div>
+              <div v-else class="token-remark" @click.stop="startEditRemark(token)">
+                <span class="remark-label">备注：</span>
+                <span class="remark-value">{{ token.remark || '点击添加备注' }}</span>
+                <n-icon style="margin-left: 4px; color: var(--text-tertiary);">
+                  <Create />
+                </n-icon>
+              </div>
+              
               <a-button :loading="refreshingTokens.has(token.id)" @click.stop="refreshToken(token)">
                 <template #icon>
                   <n-icon>
@@ -194,7 +217,42 @@
                 <div style="min-width: 100px;">
                   <a-badge :status="getTokenStyle(token.id)" :text="getConnectionStatusText(token.id)" />
                 </div>
-
+                <!-- 备注信息 - 显示在服务器信息后面 -->
+                    <div v-if="editingRemark === token.id" style="
+                        font-size: 0.75em;
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                      " @click.stop>
+                      <i class="i-mdi:note-outline" style="margin-right: 1px;"></i>
+                      <n-input 
+                        v-model:value="tempRemarks[token.id]" 
+                        size="small" 
+                        placeholder="添加备注..." 
+                        @blur="saveRemark(token)" 
+                        @keyup.enter="saveRemark(token)" 
+                        @keyup.esc="cancelEditRemark()" 
+                        autofocus
+                        style="width: 150px;"
+                      />
+                    </div>
+                    <div v-else style="
+                        font-size: 0.75em;
+                        color: var(--text-secondary);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                      " @click.stop="startEditRemark(token)">
+                      <i class="i-mdi:note-outline" style="margin-right: 1px;"></i>
+                      {{ token.remark || '点击添加备注' }}
+                      <n-icon style="font-size: 0.8em; color: var(--text-tertiary);">
+                        <Create />
+                      </n-icon>
+                    </div>
                 <n-tag size="small" :type="token.importMethod === 'url' ? 'success' : 'warning'">
                   {{ token.importMethod === 'url' ? '长期' : '临时' }}
                 </n-tag>
@@ -258,6 +316,9 @@
         </n-form-item>
         <n-form-item label="WebSocket地址">
           <n-input v-model:value="editForm.wsUrl" />
+        </n-form-item>
+        <n-form-item label="备注">
+          <n-input v-model:value="editForm.remark" type="textarea" :rows="2" placeholder="添加备注信息..." />
         </n-form-item>
       </n-form>
 
@@ -329,12 +390,17 @@ const refreshingTokens = ref(new Set())
 const connectingTokens = ref(new Set())
 const viewMode = ref('card')
 
+// 备注编辑状态管理
+const editingRemark = ref(null); // 当前正在编辑备注的tokenId
+const tempRemarks = ref({}); // 临时保存编辑中的备注内容
+
 // 编辑表单
 const editForm = reactive({
   name: '',
   token: '',
   server: '',
-  wsUrl: ''
+  wsUrl: '',
+  remark: "",
 })
 
 const editRules = {
@@ -507,6 +573,12 @@ const upgradeTokenToPermanent = (token) => {
 }
 
 const selectToken = (token, forceReconnect = false) => {
+    // 如果有备注正在编辑，保存备注并取消编辑
+  if (editingRemark.value) {
+    saveCurrentRemark();
+    return;
+  }
+
   const isAlreadySelected = selectedTokenId.value === token.id
   const connectionStatus = getConnectionStatus(token.id)
 
@@ -641,6 +713,7 @@ const editToken = (token) => {
     token: token.token,
     server: token.server || '',
     wsUrl: token.wsUrl || '',
+    remark: token.remark || "",
   })
   showEditModal.value = true
 }
@@ -655,7 +728,8 @@ const saveEdit = async () => {
       name: editForm.name,
       token: editForm.token,
       server: editForm.server,
-      wsUrl: editForm.wsUrl
+      wsUrl: editForm.wsUrl,
+      remark: editForm.remark,
     })
 
     message.success('Token信息已更新')
@@ -674,6 +748,34 @@ const copyToken = async (token) => {
     message.error('复制失败')
   }
 }
+
+// 快速编辑备注功能
+const startEditRemark = (token) => {
+  editingRemark.value = token.id;
+  tempRemarks.value[token.id] = token.remark || "";
+};
+
+// 保存备注的通用函数
+const saveCurrentRemark = () => {
+  if (!editingRemark.value) return;
+  
+  const editingTokenId = editingRemark.value;
+  const remark = tempRemarks.value[editingTokenId] || "";
+  tokenStore.updateToken(editingTokenId, {
+    remark: remark
+  });
+  editingRemark.value = null;
+  message.success("备注已保存");
+};
+
+const saveRemark = (token) => {
+  saveCurrentRemark();
+};
+
+const cancelEditRemark = () => {
+  editingRemark.value = null;
+};
+
 
 
 const deleteToken = (token) => {
@@ -820,8 +922,8 @@ const formatTime = (timestamp) => {
 }
 
 const goToDashboard = () => {
-  router.push('/admin/dashboard')
-}
+  router.push("/admin/batch-daily-tasks");
+};
 
 // 开始任务管理 - 包含连接探测
 const startTaskManagement = async (token) => {
@@ -1325,6 +1427,47 @@ onUnmounted(() => {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
+
+.token-remark {
+  margin: var(--spacing-sm) 0;
+  padding: var(--spacing-sm);
+  background: var(--bg-tertiary);
+  border-radius: var(--border-radius-small);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+  
+  &:hover {
+    background: var(--bg-secondary);
+  }
+}
+
+.token-remark-edit {
+  cursor: default;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-medium);
+  
+  &:hover {
+    background: var(--bg-primary);
+  }
+}
+
+.remark-label {
+  font-weight: var(--font-weight-medium);
+  margin-right: var(--spacing-xs);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.remark-value {
+  font-style: italic;
+  flex: 1;
+}
+
 
 .token-timestamps {
   display: flex;

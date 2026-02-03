@@ -141,6 +141,7 @@ export function registerDefaultCommands(reg) {
     .register("legion_signin")
     .register("legion_getwarrank")
     .register("legionwar_getdetails")
+    .register("legion_storebuygoods")
 
     //盐场
     .register("legion_getinfobyid")
@@ -233,6 +234,18 @@ export function registerDefaultCommands(reg) {
     .register("car_getmemberhelpingcnt")
     .register("car_research",{researchId:1})
 
+    // 功法
+    .register("legacy_getinfo")
+    .register("legacy_claimhangup")
+    // 功法残卷赠送
+    .register("legacy_gift_getlist")
+    .register("legacy_gift_send", { recipientId: 0, itemId: 0, quantity: 0 })
+    .register("legacy_gift_received")
+    // 安全密码验证
+    .register("role_commitpassword", { password: "", passwordType: 1 })
+    // 功法残卷发送
+    .register("legacy_sendgift", { itemCnt: 0, legacyUIds: [], targetId: 0 })
+
     // 咸王宝库
     .register("matchteam_getroleteaminfo")
     .register("bosstower_getinfo")
@@ -247,9 +260,6 @@ export function registerDefaultCommands(reg) {
     .register("evotower_fight", { battleNum: 1, winNum: 1 })
     .register("evotower_claimtask", { taskId: 1 })
     .register("evotower_claimreward")
-
-    //武功
-    .register("legacy_claimhangup")
 
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
@@ -804,7 +814,36 @@ export class XyzwWebSocketClient {
       if (packet.code === 0 || packet.code === undefined) {
         promiseData.resolve(responseBody || packet)
       } else {
-        promiseData.reject(new Error(`服务器错误: ${packet.code} - ${packet.hint || '未知错误'}`))
+        // 错误码映射表
+        const errorCodeMap = {
+          700010: "任务未达成完成条件",
+          1400010: "没有购买该月卡,不能领取每日奖励",
+          12000116: "今日已领取免费奖励",
+          3300060: "扫荡条件不满足",
+          1300050: "请修改您的采购次数",
+          200020: "出了点小问题，请尝试重启游戏解决～",
+          200160: "模块未开启",
+          7500140: "请先输入密码",
+          7500100: "密码输入错误",
+          7500120: "密码输入错误次数已达上限",
+          200400: "操作太快，请稍后再试",
+          200760: "您当前看到的界面已发生变化，请重新登录",
+          2300190: "未加入俱乐部",
+          2300370: "俱乐部商品购买数量超出上限",
+          400000: "物品不存在",
+          1500020: "能量不足",
+          2300070: "未加入俱乐部",
+          3500020: "没有可领取的奖励"
+        };
+        
+        // 获取错误描述
+        const errorDesc = errorCodeMap[packet.code] || packet.hint || "未知错误";
+        
+        promiseData.reject(
+          new Error(
+            `服务器错误: ${packet.code} - ${errorDesc}`,
+          ),
+        );
       }
       return
     }
@@ -874,13 +913,18 @@ export class XyzwWebSocketClient {
       'activity_warorderclaimresp': 'activity_recyclewarorderrewardclaim',
       'arena_getarearankresp': 'arena_getarearank',
       'bosstower_gethelprankresp': 'bosstower_gethelprank',
+      // 功法相关响应映射
+      'legacy_getinforesp': "legacy_getinfo",
+      'legacy_claimhangupresp': "legacy_claimhangup",
+      'legacy_sendgiftresp': "legacy_sendgift",
+      'legacy_getgiftsresp': "legacy_getgifts",
       'car_researchresp':'car_research',
       // 特殊响应映射 - 有些命令有独立响应，有些用同步响应
       'task_claimdailyrewardresp': 'task_claimdailyreward',
       'task_claimweekrewardresp': 'task_claimweekreward',
 
       // 同步响应映射（优先级低）
-      'syncresp': ['system_mysharecallback', 'task_claimdailypoint'],
+      'syncresp': ['system_mysharecallback', 'task_claimdailypoint', 'role_commitpassword'],
       'syncrewardresp': ['system_buygold', 'discount_claimreward', 'card_claimreward',
         'artifact_lottery', 'genie_sweep', 'genie_buysweep', 'system_signinreward', 'dungeon_selecthero']
     }

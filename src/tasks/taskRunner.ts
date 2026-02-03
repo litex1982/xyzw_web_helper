@@ -67,6 +67,23 @@ const isTodayAvailable = (statisticsTime: any) => {
   const recordDate = new Date(statisticsTime * 1000).toDateString()
   return today !== recordDate
 }
+const isWeirdTowerActivityOpen = () => {
+  const now = new Date();
+  const start = new Date("2025-12-12T12:00:00"); // 起始时间：黑市周开始
+  const weekDuration = 7 * 24 * 60 * 60 * 1000; // 一周毫秒数
+  const cycleDuration = 3 * weekDuration; // 三周期毫秒数
+
+  const elapsed = now - start;
+  if (elapsed < 0) return null; // 活动开始前
+
+  const cyclePosition = elapsed % cycleDuration;
+
+  if (cyclePosition < weekDuration) {
+    return true; // 黑市周
+  } else {
+    return false;
+  }
+};
 
 const loadDailyTaskSettings = (roleId: any) => {
   const defaultSettings = {
@@ -360,7 +377,7 @@ const performBulkDailyTask = async (message:any) => {
       try { await executeGameCommand(token.id, 'task_claimdailyreward', {}, '领取日常任务奖励') } catch (e) { console.warn('日常奖励领取失败', e) }
       try { await executeGameCommand(token.id, 'task_claimweekreward', {}, '领取周常任务奖励') } catch (e) { console.warn('周常奖励领取失败', e) }
 
-      
+      if(isWeirdTowerActivityOpen()){
       try{
           // 邪将塔每日任务
         for(let round=1;round<=10;round++){
@@ -384,8 +401,9 @@ const performBulkDailyTask = async (message:any) => {
       for (let taskId = 1; taskId <= 3; taskId++) {
         try { await executeGameCommand(token.id, 'evotower_claimtask', { taskId:taskId }, `领取邪将塔任务奖励${taskId}`, 5000) } catch (e) { console.warn('领取邪将塔任务奖励失败', e) }
       }
+    }
 
-      await waitForSeconds(5)
+      await waitForSeconds(2)
       tokenStore.closeWebSocketConnection(token.id)
       if (message && message.success) message.success(`${token.name} 执行任务完成`)
 
