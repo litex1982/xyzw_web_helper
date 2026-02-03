@@ -3237,7 +3237,7 @@ const batchLegacyGiftSendEnhanced = async () => {
     return;
   }
   
-  if (giftConfig.quantity <= 0 || giftConfig.quantity > 9999) {
+  if (giftConfig.quantity <= 0) {
       message.error("赠送数量必须在1-9999之间");
       return;
   }
@@ -3361,7 +3361,7 @@ const batchLegacyGiftSendEnhanced = async () => {
 
         addLog({
           time: new Date().toLocaleTimeString(),
-          message: `=== ${token.name} 成功赠送功法残卷${giftConfig.quantity}个给[${giftConfig.serverName}] ID:${giftConfig.recipientId} ${giftConfig.name} ===`,
+          message: `=== ${token.name} 成功赠送功法残卷${Math.min(giftConfig.quantity,legacyFragmentCount)}个给[${giftConfig.serverName}] ID:${giftConfig.recipientId} ${giftConfig.name} ===`,
           type: "success",
         });
         
