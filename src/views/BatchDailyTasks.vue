@@ -1830,6 +1830,125 @@ const batchEvilTower= async () => {
   message.success('批量邪将塔战斗结束')
 }
 
+const getDreamBattleTeam = async (tokenId)=>{
+  const dreamBattleTeam = { "0": 107 };
+  try {
+    const roleInfo = await tokenStore.sendMessageWithPromise(tokenId, 'presetteam_getinfo', {}, 15000);
+    
+    if (roleInfo) {
+      //没有阵容，返回默认吕布
+      if (!roleInfo.presetTeamInfo.presetTeamInfo) {
+        return battleTeam;
+      }
+      const useTeamId = roleInfo.presetTeamInfo.useTeamId.toString();
+      const battleTeam = roleInfo.presetTeamInfo.presetTeamInfo[useTeamId].teamInfo;
+      
+      let heroIndex=0;
+      for (let i = 0; i < 5; i++) {
+        const heroKey = i.toString();
+        if (battleTeam[heroKey]) {
+          const heroInfo = battleTeam[heroKey];
+          const heroId = heroInfo.heroId || heroInfo;
+          if (heroId !== 0) {
+            //将HeroId按照顺序填入battleTeam，避免出现空位
+            dreamBattleTeam[heroIndex] = heroId;
+            heroIndex++;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    message.error(`获取默认队伍信息出错: ${error.message}`);
+  }
+  return dreamBattleTeam; 
+}
+
+// 商人配置
+const merchantConfig = {
+  1: { name: '初级商人', items: ['进阶石', '精铁', '木质宝箱', '青铜宝箱', '普通鱼竿', '挑战票', '咸神火把'] },
+  2: { name: '中级商人', items: ['梦魇晶石', '进阶石', '精铁', '黄金宝箱', '黄金鱼竿', '招募令', '橙将碎片', '紫将碎片'] },
+  3: { name: '高级商人', items: ['梦魇晶石', '铂金宝箱', '黄金鱼竿', '招募令', '红将碎片', '橙将碎片', '红将碎片', '普通鱼竿'] }
+};
+
+// 金币/黄金鱼竿/铂金宝箱购买的商品配置 [商人ID][商品索引]
+const goldItemsConfig = {
+  1: [5, 6], // 初级商人: 挑战票, 咸神火把
+  2: [6, 7], // 中级商人: 橙将碎片, 紫将碎片
+  3: [1, 2, 5, 6, 7]  // 高级商人: 橙将碎片, 红将碎片, 普通鱼竿
+};
+
+// 检查是否为金币商品
+function isGoldItem(merchantId, index) {
+  return goldItemsConfig[merchantId] && goldItemsConfig[merchantId].includes(index);
+}
+
+// 获取商品显示名称
+function getItemName(merchantId, index) {
+  const merchant = merchantConfig[merchantId];
+  if (merchant && merchant.items[index] !== undefined) {
+    return merchant.items[index];
+  }
+  return `未知商品(${index})`;
+}
+
+
+// 购买商品
+async function buyItem(tokenId, merchantId, index, pos) {
+  try {
+    const response = await tokenStore.sendMessageWithPromise(tokenId, 'dungeon_buymerchant', {
+      id: merchantId,
+      index: index,
+      pos: pos
+    }, 15000);
+    
+    return response && response.code === 0;
+  } catch (error) {
+    console.error('购买商品失败:', error);
+    return false;
+  }
+}
+
+const batchBuyMengJingItem = async (tokenId) =>{
+    try {
+    const response = await tokenStore.sendMessageWithPromise(tokenId, 'role_getroleinfo', {}, 15000);
+    
+    if (response && response && response.role) {
+      // 获取商品列表
+      if (response.role.dungeon && response.role.dungeon.merchant) {
+        const merchantData = response.role.dungeon.merchant;
+          // 遍历所有商人的商品
+          for (const merchantId in merchantData) {
+            const items = merchantData[merchantId];
+            //商人编码
+            const numId/*商人编号*/ = parseInt(merchantId);
+            
+            // 从后往前购买（pos从大到小）
+            for (let pos = items.length - 1; pos >= 0; pos--) {
+              const index = items[pos];
+              
+              if (isGoldItem(numId/*商人编号*/, index)) {
+                try {
+                  const itemName = getItemName(numId/*商人编号*/, index);
+                  addLog({ time: new Date().toLocaleTimeString(), message: `商人${numId} 购买梦境商品: ${itemName}`, type: 'info' })
+                  const success = await buyItem(tokenId, numId/*商人编号*/, index, pos);
+                } catch (error) {
+                  console.error(`购买梦境商品失败: 商人${numId} 商品索引${index} 位置${pos}`, error);
+                }
+                
+                // 延迟避免请求过快
+                await new Promise(r => setTimeout(r, 500))
+              }
+            }
+          }
+      }
+    }
+  } catch (error) {
+    console.error('购买梦境商品失败:', error);
+    throw error;
+  }
+}
+
+
 const batchmengjing = async () => {
   if (selectedTokens.value.length === 0) return
   isRunning.value = true
@@ -1849,11 +1968,17 @@ const batchmengjing = async () => {
       addLog({ time: new Date().toLocaleTimeString(), message: `=== 开始一键宝库: ${token.name} ===`, type: 'info' })
       await ensureConnection(tokenId)
       if (shouldStop.value) break
-      const mjbattleTeam = { "0": 107 }
       const dayOfWeek = new Date().getDay()
       if (dayOfWeek === 0 | dayOfWeek === 1 | dayOfWeek === 3 | dayOfWeek === 4) {
-        await tokenStore.sendMessageWithPromise(tokenId, 'dungeon_selecthero', { battleTeam: mjbattleTeam }, 5000)
-        await new Promise(r => setTimeout(r, 500))
+        const mjbattleTeam = await getDreamBattleTeam(tokenId);
+        try{
+          await tokenStore.sendMessageWithPromise(tokenId, 'dungeon_selecthero', { battleTeam: mjbattleTeam }, 5000)
+          await new Promise(r => setTimeout(r, 500))
+        }catch(e){
+          //选择过梦境队伍时可能会出错
+          console.warn('选择梦境战斗队伍失败', e)
+        }
+        await batchBuyMengJingItem(tokenId);
         tokenStatus.value[tokenId] = 'completed'
         addLog({ time: new Date().toLocaleTimeString(), message: `=== ${token.name} 咸王梦境已完成 ===`, type: 'success' })
       }
