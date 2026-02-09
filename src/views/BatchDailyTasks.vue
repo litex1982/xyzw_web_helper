@@ -2721,12 +2721,12 @@ const isBigPrize = (rewards) => {
 
 const CalculatePrizeTotalPrice = (rewards, color) => {
   const prizeUnitPrice = [
-    {type: 3, itemId: 1022, value: 2}, // 白玉
+    {type: 3, itemId: 1022, value: 1}, // 白玉
     {type: 2, itemId: 0, value: 1}, // 金砖
     {type: 3, itemId: 1023, value: 500}, // 彩玉
     {type: 3, itemId: 35002, value: 400}, // 刷新券
-    {type: 3, itemId: 3201, value: 150}, // 招募令
-    {type: 3, itemId: 1001, value: 150}, // 万能碎片
+    {type: 3, itemId: 3201, value: 100}, // 招募令
+    {type: 3, itemId: 1001, value: 100}, // 万能碎片
   ]
   if (!Array.isArray(rewards)) return 0
   let totalPrice=0
