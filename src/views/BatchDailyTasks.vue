@@ -2867,12 +2867,16 @@ const batchSmartSendCar = async () => {
       for (const car of carList) {
         if (shouldSendCar(car, refreshTickets)) {
           addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]满足条件，直接发车`, type: 'info' })
+          try {
           await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
             carId: String(car.id),
             helperId: await getCarHelper(car,token),
             text: '',
             isUpgrade: false
           }, 10000)
+        }catch(e){
+          addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]发车失败: ${e.message}`, type: 'error' })
+        }
           await new Promise(r => setTimeout(r, 500))
         }
       }
@@ -2892,12 +2896,16 @@ const batchSmartSendCar = async () => {
         // Check if we should send immediately
         if (shouldSendCar(car, refreshTickets)) {
           addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]满足条件，直接发车`, type: 'info' })
-          await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
-            carId: String(car.id),
-            helperId: await getCarHelper(car,token),
-            text: '',
-            isUpgrade: false
-          }, 10000)
+          try{
+            await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
+              carId: String(car.id),
+              helperId: await getCarHelper(car,token),
+              text: '',
+              isUpgrade: false
+            }, 10000)
+          }catch(e){
+          addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]发车失败: ${e.message}`, type: 'error' })
+          }
           await new Promise(r => setTimeout(r, 500))
           continue
         }
@@ -2910,12 +2918,16 @@ const batchSmartSendCar = async () => {
         else {
           // No tickets and not free, just send
           addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]不满足条件且无刷新次数，直接发车`, type: 'warning' })
+          try{
           await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
             carId: String(car.id),
             helperId: await getCarHelper(car,token),
             text: '',
             isUpgrade: false
           }, 10000)
+          }catch(e){
+          addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]发车失败: ${e.message}`, type: 'error' })
+          }
           await new Promise(r => setTimeout(r, 500))
           continue
         }
@@ -2944,12 +2956,16 @@ const batchSmartSendCar = async () => {
           // Check if good enough now
           if (shouldSendCar(car, refreshTickets)) {
             addLog({ time: new Date().toLocaleTimeString(), message: `刷新后车辆[${gradeLabel(car.color)}]满足条件，发车`, type: 'success' })
+            try{
             await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
               carId: String(car.id),
               helperId: await getCarHelper(car,token),
               text: '',
               isUpgrade: false
             }, 10000)
+            }catch(e){
+            addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]发车失败: ${e.message}`, type: 'error' })
+            }
             await new Promise(r => setTimeout(r, 500))
             break
           }
@@ -2960,12 +2976,16 @@ const batchSmartSendCar = async () => {
           else if (freeNow) shouldRefresh = true
           else {
             addLog({ time: new Date().toLocaleTimeString(), message: `刷新后车辆[${gradeLabel(car.color)}]仍不满足条件且无刷新次数，发车`, type: 'warning' })
+            try{
             await tokenStore.sendMessageWithPromise(tokenId, 'car_send', {
               carId: String(car.id),
               helperId: await getCarHelper(car,token),
               text: '',
               isUpgrade: false
             }, 10000)
+            }catch(e){
+              addLog({ time: new Date().toLocaleTimeString(), message: `车辆[${gradeLabel(car.color)}]发车失败: ${e.message}`, type: 'error' })
+            }
             await new Promise(r => setTimeout(r, 500))
             break
           }
