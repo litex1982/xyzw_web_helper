@@ -3862,10 +3862,10 @@ const batchLegacyGiftSendEnhanced = async () => {
                      needStart = true;
                      failCount++;
 
-                     if (failCount >= 5) {
+                     if (failCount >= 10) {
                          addLog({
                             time: new Date().toLocaleTimeString(),
-                            message: `${token.name} BOSS ${type} 连续失败5次，跳过`,
+                            message: `${token.name} BOSS ${type} 连续失败10次，跳过`,
                             type: "error",
                          });
                          loop = false;
