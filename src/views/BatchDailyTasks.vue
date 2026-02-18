@@ -103,6 +103,13 @@
             <n-button size="small" @click="showLegacyGiftModal = true" :disabled="isRunning || selectedTokens.length === 0">
               批量功法残卷赠送
             </n-button>
+            <n-button
+              size="small"
+              @click="skinChallenge"
+              :disabled="isRunning || selectedTokens.length === 0"
+            >
+              一键换皮闯关
+            </n-button>
           </n-space>
           <n-space vertical>
             <n-checkbox :checked="isAllSelected" :indeterminate="isIndeterminate" @update:checked="handleSelectAll">
@@ -3657,6 +3664,238 @@ const batchLegacyGiftSendEnhanced = async () => {
   });
   
   message.success(`批量赠送功法残卷结束，成功 ${totalSuccess} 个，失败 ${totalFailed} 个`);
+};
+
+  /**
+   * 换皮闯关
+   */
+  const skinChallenge = async () => {
+  if (selectedTokens.value.length === 0) return
+
+  isRunning.value = true
+  shouldStop.value = false
+  logs.value = []
+
+  selectedTokens.value.forEach(id => {
+    tokenStatus.value[id] = 'waiting'
+  })
+
+  for (const tokenId of selectedTokens.value) {
+    if (shouldStop.value) break
+
+    currentRunningTokenId.value = tokenId
+    tokenStatus.value[tokenId] = 'running'
+    currentProgress.value = 0
+
+    const token = tokens.value.find(t => t.id === tokenId)
+
+      try {
+        addLog({
+          time: new Date().toLocaleTimeString(),
+          message: `=== 开始换皮闯关: ${token.name} ===`,
+          type: "info",
+        });
+
+        await ensureConnection(tokenId);
+
+        // 获取活动信息
+        let res = await tokenStore.sendMessageWithPromise(
+          tokenId,
+          "towers_getinfo",
+          {},
+          5000
+        );
+        
+        let towerData = res.actId ? res : (res.towerData && res.towerData.actId ? res.towerData : res);
+
+        // 检查活动是否有效
+        if (!towerData.actId) {
+           addLog({
+            time: new Date().toLocaleTimeString(),
+            message: `${token.name} 换皮闯关活动信息获取失败`,
+            type: "warning",
+          });
+          tokenStatus.value[tokenId] = "failed";
+          return;
+        }
+
+        const actId = String(towerData.actId);
+        if (actId.length >= 6) {
+           const year = "20" + actId.substring(0, 2);
+           const month = actId.substring(2, 4);
+           const day = actId.substring(4, 6);
+           const startDate = new Date(`${year}-${month}-${day}T00:00:00`);
+           const endDate = new Date(startDate);
+           endDate.setDate(startDate.getDate() + 7);
+           const now = new Date();
+           if (now < startDate || now >= endDate) {
+              addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} 换皮闯关活动已结束`,
+                type: "warning",
+              });
+              tokenStatus.value[tokenId] = "completed";
+              return;
+           }
+        }
+
+        let levelRewardMap = towerData.levelRewardMap || {};
+        
+        // 计算今日开放的BOSS
+        const todayWeekDay = new Date().getDay(); // 0-6 (Sun-Sat)
+        const openTowerMap = {
+          5: [1], // Friday
+          6: [2], // Saturday
+          0: [3], // Sunday
+          1: [4], // Monday
+          2: [5], // Tuesday
+          3: [6], // Wednesday
+          4: [1, 2, 3, 4, 5, 6] // Thursday (All open)
+        };
+        const todayOpenTowers = openTowerMap[todayWeekDay] || [];
+
+        // 辅助函数：判断是否已通关
+        const isTowerCleared = (type, map) => {
+          const key1 = `${type}008`;
+          const key2 = Number(key1);
+          return !!(map[key1] || map[key2]);
+        };
+        
+        // 辅助函数：获取当前层数
+        const getTowerLevel = (type, map) => {
+           for (let i = 8; i >= 1; i--) {
+            const key1 = `${type}00${i}`;
+            const key2 = Number(key1);
+            if (map[key1] || map[key2]) {
+                if (i === 8) return 8;
+                return i + 1;
+            }
+          }
+          return 1;
+        };
+
+        // 筛选未通关的BOSS
+        const targetTowers = todayOpenTowers.filter(type => !isTowerCleared(type, levelRewardMap));
+
+        if (todayWeekDay === 4) {
+             addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} 周四全开放，检测到需补打BOSS: ${targetTowers.length > 0 ? targetTowers.join(', ') : '无'}`,
+                type: "info",
+             });
+        } else if (targetTowers.length === 0 && todayOpenTowers.length > 0) {
+             addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} 今日BOSS ${todayOpenTowers[0]} 已通关`,
+                type: "info",
+             });
+        }
+
+        if (targetTowers.length === 0) {
+             tokenStatus.value[tokenId] = "completed";
+             addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `=== ${token.name} 换皮闯关结束 (无需挑战) ===`,
+                type: "success",
+             });
+             continue;
+        }
+
+        for (const type of targetTowers) {
+            if (shouldStop.value) break;
+
+            addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} 开始挑战 BOSS ${type}`,
+                type: "info",
+            });
+
+            let needStart = true;
+            let loop = true;
+            let failCount = 0;
+
+            while (loop && !shouldStop.value) {
+                if (needStart) {
+                    await tokenStore.sendMessageWithPromise(tokenId, "towers_start", { towerType: type }, 5000);
+                    // 稍微等待一下
+                    await new Promise(r => setTimeout(r, 500));
+                }
+
+                const fightRes = await tokenStore.sendMessageWithPromise(tokenId, "towers_fight", { towerType: type }, 5000);
+                const battleData = fightRes?.battleData;
+                const curHP = battleData?.result?.accept?.ext?.curHP;
+                
+                const currentLevel = getTowerLevel(type, levelRewardMap);
+
+                if (curHP === 0) {
+                     addLog({
+                        time: new Date().toLocaleTimeString(),
+                        message: `${token.name} BOSS ${type} 第 ${currentLevel} 层挑战成功`,
+                        type: "success",
+                     });
+
+                     needStart = false;
+                     failCount = 0;
+
+                     // 刷新数据
+                     res = await tokenStore.sendMessageWithPromise(tokenId, "towers_getinfo", {}, 5000);
+                     towerData = res.actId ? res : (res.towerData && res.towerData.actId ? res.towerData : res);
+                     levelRewardMap = towerData.levelRewardMap || {};
+
+                     if (isTowerCleared(type, levelRewardMap)) {
+                        loop = false;
+                        addLog({
+                            time: new Date().toLocaleTimeString(),
+                            message: `${token.name} BOSS ${type} 全部通关`,
+                            type: "success",
+                        });
+                     } else {
+                        await new Promise(r => setTimeout(r, 1000));
+                     }
+                } else {
+                     addLog({
+                        time: new Date().toLocaleTimeString(),
+                        message: `${token.name} BOSS ${type} 第 ${currentLevel} 层挑战失败`,
+                        type: "warning",
+                     });
+
+                     needStart = true;
+                     failCount++;
+
+                     if (failCount >= 5) {
+                         addLog({
+                            time: new Date().toLocaleTimeString(),
+                            message: `${token.name} BOSS ${type} 连续失败5次，跳过`,
+                            type: "error",
+                         });
+                         loop = false;
+                     } else {
+                        await new Promise(r => setTimeout(r, 1000));
+                     }
+                }
+            }
+        }
+
+        tokenStatus.value[tokenId] = "completed";
+        addLog({
+          time: new Date().toLocaleTimeString(),
+          message: `=== ${token.name} 换皮闯关结束 ===`,
+          type: "success",
+        });
+
+      } catch (error) {
+      console.error(error)
+      tokenStatus.value[tokenId] = 'failed'
+        addLog({ time: new Date().toLocaleTimeString(), message: `换皮闯关失败: ${error.message}`, type: 'error' })
+      }
+    currentProgress.value = 100
+    await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
+  }
+
+  isRunning.value = false
+  currentRunningTokenId.value = null
+  message.success('批量领取功法残卷结束')
 };
 
 

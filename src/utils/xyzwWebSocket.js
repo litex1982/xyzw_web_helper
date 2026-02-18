@@ -261,6 +261,11 @@ export function registerDefaultCommands(reg) {
     .register("evotower_claimtask", { taskId: 1 })
     .register("evotower_claimreward")
 
+    // 换皮闯关相关
+    .register("towers_getinfo")
+    .register("towers_start")
+    .register("towers_fight")
+
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
       throw new Error("fight_startareaarena requires targetId in params")
@@ -919,6 +924,12 @@ export class XyzwWebSocketClient {
       'legacy_sendgiftresp': "legacy_sendgift",
       'legacy_getgiftsresp': "legacy_getgifts",
       'car_researchresp':'car_research',
+
+      // 换皮闯关相关响应映射
+      'towers_getinforesp': "towers_getinfo",
+      'towers_startresp': "towers_start",
+      'towers_fightresp': "towers_fight",
+
       // 特殊响应映射 - 有些命令有独立响应，有些用同步响应
       'task_claimdailyrewardresp': 'task_claimdailyreward',
       'task_claimweekrewardresp': 'task_claimweekreward',
