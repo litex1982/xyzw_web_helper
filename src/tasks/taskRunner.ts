@@ -359,6 +359,15 @@ const performBulkDailyTask = async (message:any) => {
         }
       }
 
+      // 深海灯神
+      if (isTodayAvailable(statisticsTime[`genie:daily:free:5`])) {
+          try {
+            await executeGameCommand(token.id, 'genie_sweep', { genieId: 5, sweepCnt: 1 },  "深海灯神")
+          } catch (e) {
+            console.warn(`BulkDailyTask:深海灯神扫荡失败 [${token.id}]`, e)
+          }
+      }
+
       // 领取免费扫荡卷
       if (isTodayAvailable(statisticsTime[`genie:sweep:buy`])) {
         for (let i = 0; i < 3; i++) {
