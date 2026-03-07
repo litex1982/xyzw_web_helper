@@ -266,6 +266,9 @@ export function registerDefaultCommands(reg) {
     .register("towers_start")
     .register("towers_fight")
 
+    //黑市周
+    .register("activity_buystoregoods", { activityId: 9, goodsIndex: 1, buyNum: 1 })
+
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
       throw new Error("fight_startareaarena requires targetId in params")

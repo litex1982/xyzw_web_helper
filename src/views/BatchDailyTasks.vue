@@ -110,6 +110,13 @@
             >
               一键换皮闯关
             </n-button>
+            <n-button
+              size="small"
+              @click="showActivityStoreBuyGoodsModal = true"
+              :disabled="isRunning || selectedTokens.length === 0"
+            >
+              一键黑市周购买
+            </n-button>
           </n-space>
           <n-space vertical>
             <n-checkbox :checked="isAllSelected" :indeterminate="isIndeterminate" @update:checked="handleSelectAll">
@@ -262,6 +269,40 @@
           </div>
         <div class="modal-actions" style="margin-top: 20px; text-align: right">
           <n-button type="primary" @click="handleSelectRemark"
+            >保存设置</n-button
+          >
+        </div>
+    </n-modal>
+
+    <n-modal  v-model:show="showActivityStoreBuyGoodsModal"
+      preset="card"
+      title="黑市采买设置"
+      style="width: 90%; max-width: 400px">
+        <div
+            class="setting-item"
+            style="
+              flex-direction: row;
+              justify-content: space-between;
+              align-items: center;
+            "
+          >
+            <label class="setting-label">购买物品</label>
+            <n-checkbox-group v-model:value="selectedActivityGoods">
+              <n-checkbox 
+            v-for="(name, index) in activityGoodsList" 
+            :key="index"
+            :value="index" 
+            :label="name"
+            style="flex: 0 0 calc(50% - 4px);"
+          >
+            <div class="good-item">
+              <span>{{ name }}</span>
+            </div>
+          </n-checkbox>
+          </n-checkbox-group>
+          </div>
+        <div class="modal-actions" style="margin-top: 20px; text-align: right">
+          <n-button type="primary" @click="handleBuySelectedGoods"
             >保存设置</n-button
           >
         </div>
@@ -646,6 +687,9 @@ const helperModalTitle = computed(() => {
   return titles[helperType.value] || '批量助手'
 })
 
+//黑市周选项
+const showActivityStoreBuyGoodsModal = ref(false);
+
 // ======================
 // Legacy Gift Feature
 // ======================
@@ -672,6 +716,8 @@ const scheduledTasks = ref([]) // List of all scheduled tasks
 const showTaskModal = ref(false) // Control the visibility of the add/edit task modal
 const showTasksModal = ref(false) // Control the visibility of the tasks list modal
 const editingTask = ref(null) // Currently editing task
+// 黑市周选中的物品
+const selectedActivityGoods = ref([]);
 const taskForm = reactive({
   name: '', // Task name
   runType: 'daily', // 'daily' or 'cron'
@@ -706,6 +752,18 @@ const availableTasks = [
   { label: "批量领取功法残卷", value: "batchLegacyClaim" },
   { label: "批量赠送功法残卷", value: "batchLegacyGiftSendEnhanced" },
 ]
+
+// 黑市周物品列表
+const activityGoodsList = {
+  0: '免费',
+  1: '招募+精铁',
+  2: '招募+进阶石',
+  3: '6000进阶石',
+  4: '宝箱',
+  6: '鱼竿',
+  7: '白玉',
+  8: '灵贝'
+};
 
 // Task table columns configuration for the tasks list modal
 const taskColumns = [
@@ -1318,6 +1376,18 @@ const confirmLegacyGift = async () => {
   // 清空安全密码
   securityPassword.value = '';
 };
+
+const handleBuySelectedGoods = async () => {
+  if (selectedActivityGoods.value.length === 0) {
+    message.warning('请至少选择一个物品');
+    return;
+  }
+  
+  showActivityStoreBuyGoodsModal.value = false;
+  
+  await batchBuyActivityGoods();
+
+}
 
 
 const executeHelper = () => {
@@ -3401,6 +3471,79 @@ const batchRecruit = async () => {
   isRunning.value = false
   currentRunningTokenId.value = null
   message.success('批量招募结束')
+}
+
+const batchBuyActivityGoods = async () => {
+  if (selectedTokens.value.length === 0) return
+
+  isRunning.value = true
+  shouldStop.value = false
+  logs.value = []
+
+  const totalCount = selectedActivityGoods.value.length
+  const batches = Math.floor(totalCount / 10)
+  const remainder = totalCount % 10
+
+  selectedTokens.value.forEach(id => {
+    tokenStatus.value[id] = 'waiting'
+  })
+
+  for (const tokenId of selectedTokens.value) {
+    if (shouldStop.value) break
+
+    currentRunningTokenId.value = tokenId
+    tokenStatus.value[tokenId] = 'running'
+    currentProgress.value = 0
+
+    const token = tokens.value.find(t => t.id === tokenId)
+
+    try {
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== 开始批量黑市周购买: ${token.name} ===`, type: 'info' })
+        // 执行购买逻辑，示例中仅记录日志
+      addLog({
+        time: new Date().toLocaleTimeString(),
+        message: `购买选中物品: ${selectedActivityGoods.value.map(id => activityGoodsList[id] || id).join(', ')}`,
+        type: 'info',
+      });
+
+      await ensureConnection(tokenId)
+      try{
+      //领取免费金砖
+      await tokenStore.sendMessageWithPromise(tokenId, 'activity_buystoregoods', { activityId: 5, goodsIndex: 0, buyNum:1 }, 5000)
+      }catch(e){
+      }
+
+      for (let i = 0; i < selectedActivityGoods.value.length; i++) {
+        if (shouldStop.value) break
+        const buyGoodIndex = selectedActivityGoods.value[i]
+        const buyGoodName = activityGoodsList[buyGoodIndex] || buyGoodIndex
+        try{
+        await tokenStore.sendMessageWithPromise(tokenId, 'activity_buystoregoods', { activityId: 9, goodsIndex: buyGoodIndex, buyNum:1 }, 5000)
+        }catch(e){
+          addLog({ time: new Date().toLocaleTimeString(), message: `购买 ${buyGoodName} 失败: ${e.message}`, type: 'error' })
+        }
+        currentProgress.value = Math.floor(((i + 1) / (batches + (remainder > 0 ? 1 : 0))) * 100)
+        addLog({ time: new Date().toLocaleTimeString(), message: `购买: ${buyGoodName}`, type: 'info' })
+        await new Promise(r => setTimeout(r, 300))
+      }
+
+      tokenStatus.value[tokenId] = 'completed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== ${token.name} 黑市周购买完成 ===`, type: 'success' })
+
+    } catch (error) {
+      console.error(error)
+      tokenStatus.value[tokenId] = 'failed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `黑市周购买失败: ${error.message}`, type: 'error' })
+    }
+
+    currentProgress.value = 100
+    await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
+  }
+
+  isRunning.value = false
+  currentRunningTokenId.value = null
+  message.success('批量黑市周结束')
 }
 
 const batchLegacyClaim = async () => {
