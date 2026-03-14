@@ -3916,6 +3916,10 @@ const batchLegacyGiftSendEnhanced = async () => {
           }
           return 1;
         };
+        // 辅助函数：获取当前层是否正在战斗中
+        const getTowerLevelFightingInfo = (type, towerData) => {
+           return towerData.towerData?.[type].fighting;
+        };
 
         // 筛选未通关的BOSS
         const targetTowers = todayOpenTowers.filter(type => !isTowerCleared(type, levelRewardMap));
@@ -3956,6 +3960,15 @@ const batchLegacyGiftSendEnhanced = async () => {
             let needStart = true;
             let loop = true;
             let failCount = 0;
+            let fightingInfo = getTowerLevelFightingInfo(type, towerData);
+            if(fightingInfo){
+              needStart = false;
+               addLog({
+                time: new Date().toLocaleTimeString(),
+                message: `${token.name} BOSS ${type} 已在战斗中，继续`,
+                type: "info",
+            });
+            }
 
             while (loop && !shouldStop.value) {
                 if (needStart) {
