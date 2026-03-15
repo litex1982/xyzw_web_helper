@@ -2028,6 +2028,9 @@ const batchBuyMengJingItem = async (tokenId) =>{
 
 const batchmengjing = async () => {
   if (selectedTokens.value.length === 0) return
+  // 梦境只在周日、周一、周三、周四开放
+  const day = new Date().getDay()
+  if (!(day === 0 || day === 1 || day === 3 || day === 4)) return
   isRunning.value = true
   shouldStop.value = false
   logs.value = []
@@ -2897,6 +2900,10 @@ const canClaim = (car) => {
 
 const batchSmartSendCar = async () => {
   if (selectedTokens.value.length === 0) return
+  //只周1到周三可以发车
+  const day = new Date().getDay()
+  // 1=Mon, 2=Tue, 3=Wed
+  if(!(day >= 1 && day <= 3)) return
 
   isRunning.value = true
   shouldStop.value = false
