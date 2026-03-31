@@ -34,6 +34,9 @@
         <!-- 挂机状态（提取组件） -->
         <HangUpStatusCard v-show="activeSection === 'daily'" />
 
+            <!-- 无限阵容助手（提取组件） -->
+        <Unlimitedlineup v-show="activeSection === 'tools'" />
+
         <!-- 宝箱助手（提取组件） -->
         <BoxHelperCard v-show="activeSection === 'tools'" />
 
@@ -170,6 +173,7 @@ import RefineHelperCard from "./cards/RefineHelperCard.vue";
 import TowerStatus from "./Tower/TowerStatus.vue";
 import WeirdTowerStatus from "./Tower/WeirdTowerStatus.vue";
 import BossTower from "./Tower/BossTower.vue";
+import Unlimitedlineup from "./cards/Unlimitedlineup.vue";
 const tokenStore = useTokenStore();
 const message = useMessage();
 

@@ -142,6 +142,8 @@ export function registerDefaultCommands(reg) {
     .register("legion_getwarrank")
     .register("legionwar_getdetails")
     .register("legion_storebuygoods")
+    .register("legion_research")
+    .register("legion_resetresearch")
 
     //盐场
     .register("legion_getinfobyid")
@@ -268,6 +270,20 @@ export function registerDefaultCommands(reg) {
 
     //黑市周
     .register("activity_buystoregoods", { activityId: 9, goodsIndex: 1, buyNum: 1 })
+
+    //阵容布阵
+    .register("hero_exchange")
+    //下阵
+    .register("hero_gobackbattle", { slot: 1})
+    //上阵
+    .register("hero_gointobattle", { slot: 1, heroId: 107})
+    //已被使用道具heroId: 107, itemId: -1, targetHeroId: 101, pearlId: 0 
+    //未被使用道具 "heroId": 107, "itemId": 11135, "targetHeroId": -1, "pearlId": 1
+    .register("artifact_load", { heroId: 107, itemId: -1, targetHeroId: 101, pearlId: 0 })
+    .register("artifact_unload", { heroId: 107 })
+    .register("pearl_unloadskill", { pearlId: 1 })
+    .register("pearl_replaceskill", { pearlId: 1, skillId: 201 })
+    .register("lordweapon_changedefaultweapon")
 
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
