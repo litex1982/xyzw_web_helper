@@ -1328,255 +1328,12 @@ const applyLineup = async (lineup) => {
   
   const errors = [];
 
-  //开始应用鱼灵
-  await applyFishSetting(lineup);
-
-  const getTeamHeroes = (teamInfo) => {
-    if (!teamInfo) return [];
-    return Object.entries(teamInfo)
-      .map(([key, hero]) => ({
-        position: hero?.battleTeamSlot ?? Number(key),
-        heroId: hero?.heroId || hero?.id,
-        artifactId: hero?.artifactId || null,
-        attachmentUid: hero?.attachmentUid || null,
-      }))
-      .filter((h) => h.heroId)
-      .sort((a, b) => a.position - b.position);
-  };
-
-  const fetchLatestData = async (teamId = null) => {
-    const roleInfo = await tokenStore.sendMessageWithPromise(
-      tokenId,
-      "role_getroleinfo",
-      {},
-    );
-    await delay(COMMAND_DELAY);
-    const presetTeam = await tokenStore.sendMessageWithPromise(
-      tokenId,
-      "presetteam_getinfo",
-      {},
-    );
-    const heroes = roleInfo?.role?.heroes || roleInfo?.heroes || {};
-    const pearlMapData = roleInfo?.role?.pearlMap || roleInfo?.pearlMap || {};
-    const artifactBooksData =
-      roleInfo?.role?.artifactBooks || roleInfo?.artifactBooks || {};
-    roleHeroesData.value = heroes;
-    const targetTeamId = teamId || currentTeamId.value;
-    const team =
-      presetTeam?.presetTeamInfo?.presetTeamInfo?.[targetTeamId] ||
-      presetTeam?.presetTeamInfo?.presetTeamInfo?.[String(targetTeamId)];
-    return {
-      heroes,
-      teamInfo: team?.teamInfo || {},
-      pearlMap: pearlMapData,
-      artifactBooks: artifactBooksData,
-    };
-  };
-
-  const isIgnorableError = (err) => {
-    const msg = err.message || "";
-    return msg.includes("200020");
-  };
-
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const COMMAND_DELAY = 500;
-
-  try {
-    const targetHeroes = [...lineup.heroes];
-
-    let { heroes, teamInfo } = await fetchLatestData();
-    let currentHeroes = getTeamHeroes(teamInfo);
-
-    const attachmentToHero = {};
-    for (const [id, hero] of Object.entries(heroes)) {
-      if (hero.attachmentUid && hero.attachmentUid !== -1) {
-        attachmentToHero[hero.attachmentUid] = Number(id);
-      }
-    }
-
-    const currentHeroIds = new Set(currentHeroes.map((h) => h.heroId));
-    const targetHeroIds = new Set(targetHeroes.map((h) => h.heroId));
-
-    for (const targetHero of targetHeroes) {
-      if (!targetHero.attachmentUid || targetHero.attachmentUid === -1)
-        continue;
-
-      const currentHolderId = attachmentToHero[targetHero.attachmentUid];
-
-      if (currentHolderId && currentHolderId !== targetHero.heroId) {
-        const holderInTeam = currentHeroIds.has(currentHolderId);
-        const targetInTeam = currentHeroIds.has(targetHero.heroId);
-
-        if (!holderInTeam && !targetInTeam) {
-          const emptySlot = currentHeroes.length < 5 ? currentHeroes.length : 0;
-          try {
-            await tokenStore.sendMessageWithPromise(
-              tokenId,
-              "hero_gointobattle",
-              {
-                heroId: currentHolderId,
-                slot: emptySlot,
-              },
-            );
-            await delay(COMMAND_DELAY);
-          } catch (err) {
-            if (!isIgnorableError(err)) {
-              errors.push(`上阵装备持有者失败: ${err.message}`);
-            }
-            continue;
-          }
-
-          try {
-            await tokenStore.sendMessageWithPromise(
-              tokenId,
-              "hero_gointobattle",
-              {
-                heroId: targetHero.heroId,
-                slot: emptySlot + 1,
-              },
-            );
-            await delay(COMMAND_DELAY);
-          } catch (err) {
-            if (!isIgnorableError(err)) {
-              errors.push(`上阵目标英雄失败: ${err.message}`);
-            }
-          }
-        }
-
-        try {
-          await tokenStore.sendMessageWithPromise(tokenId, "hero_exchange", {
-            heroId: currentHolderId,
-            targetHeroId: targetHero.heroId,
-          });
-          await delay(COMMAND_DELAY);
-        } catch (err) {
-          if (!isIgnorableError(err)) {
-            errors.push(
-              `装备更换到${getHeroName(targetHero.heroId)}失败: ${err.message}`,
-            );
-          }
-        }
-      }
-    }
-
-    await delay(COMMAND_DELAY);
-    const data1 = await fetchLatestData();
-    heroes = data1.heroes;
-    for (const [id, hero] of Object.entries(heroes)) {
-      if (hero.attachmentUid && hero.attachmentUid !== -1) {
-        attachmentToHero[hero.attachmentUid] = Number(id);
-      }
-    }
-    currentHeroes = getTeamHeroes(data1.teamInfo);
-    currentHeroIds.clear();
-    currentHeroes.forEach((h) => currentHeroIds.add(h.heroId));
-
-    for (const hero of currentHeroes) {
-      if (!targetHeroIds.has(hero.heroId)) {
-        if (currentHeroes.length <= 1) break;
-        try {
-          await tokenStore.sendMessageWithPromise(
-            tokenId,
-            "hero_gobackbattle",
-            {
-              slot: hero.position,
-            },
-          );
-          await delay(COMMAND_DELAY);
-          currentHeroes = currentHeroes.filter((h) => h.heroId !== hero.heroId);
-        } catch (err) {
-          if (!isIgnorableError(err)) {
-            errors.push(`${getHeroName(hero.heroId)}下阵失败: ${err.message}`);
-          }
-        }
-      }
-    }
-
-    await delay(COMMAND_DELAY);
-    const data2 = await fetchLatestData();
-    await delay(COMMAND_DELAY);
-    currentHeroes = getTeamHeroes(data2.teamInfo);
-
-    const needPositionFix = targetHeroes.some((targetHero) => {
-      const currentHero = currentHeroes.find(
-        (h) => h.heroId === targetHero.heroId,
-      );
-      return !currentHero || currentHero.position !== targetHero.position;
-    });
-
-    if (needPositionFix) {
-      const correctHeroes = currentHeroes.filter((h) => {
-        const target = targetHeroes.find((t) => t.heroId === h.heroId);
-        return target && target.position === h.position;
-      });
-
-      const heroesToRemove = currentHeroes.filter((h) => {
-        const target = targetHeroes.find((t) => t.heroId === h.heroId);
-        return !target || target.position !== h.position;
-      });
-
-      const keepHero =
-        correctHeroes.length > 0
-          ? correctHeroes[0]
-          : heroesToRemove.length > 0
-            ? heroesToRemove.pop()
-            : null;
-
-      for (const hero of heroesToRemove) {
-        try {
-          await tokenStore.sendMessageWithPromise(
-            tokenId,
-            "hero_gobackbattle",
-            {
-              slot: hero.position,
-            },
-          );
-          await delay(COMMAND_DELAY);
-        } catch (err) {
-          if (!isIgnorableError(err)) {
-            errors.push(`${getHeroName(hero.heroId)}下阵失败: ${err.message}`);
-          }
-        }
-      }
-
-      const heroesToDeploy = targetHeroes.filter((t) => {
-        if (
-          keepHero &&
-          t.heroId === keepHero.heroId &&
-          t.position === keepHero.position
-        ) {
-          return false;
-        }
-        const current = currentHeroes.find((h) => h.heroId === t.heroId);
-        return !current || current.position !== t.position;
-      });
-
-      for (const targetHero of heroesToDeploy) {
-        try {
-          await tokenStore.sendMessageWithPromise(
-            tokenId,
-            "hero_gointobattle",
-            {
-              heroId: targetHero.heroId,
-              slot: targetHero.position,
-            },
-          );
-          await delay(COMMAND_DELAY);
-        } catch (err) {
-          if (!isIgnorableError(err)) {
-            errors.push(
-              `${getHeroName(targetHero.heroId)}上阵失败: ${err.message}`,
-            );
-          }
-        }
-      }
-    }
-
-    if (errors.length > 0) {
-      message.warning(`阵容已应用，但有部分错误:\n${errors.join("\n")}`);
-    } else {
-      message.success(`阵容 "${lineup.name}" 已应用`);
-    }
+  //开始应用鱼灵
+  await applyFishSetting(lineup);
+  try{
+    await applyTeamFormationSetting(lineup);
 
     if (
       lineup.legionResearch &&
@@ -1695,6 +1452,56 @@ const applyFishSetting = async (localTeamSettings) => {
     }
   } catch (e) {
     console.error("应用鱼灵设置失败:", e);
+  } 
+}; 
+
+
+const applyTeamFormationSetting = async (localTeamSettings) => {
+  try {
+    const teamToLoad = localTeamSettings;
+    const teamInfo = {};
+    teamToLoad.heroes.forEach((h) => {
+      teamInfo[String(h.position)] = { heroId: h.heroId, artifactId: h.artifactId, attachmentUid: h.attachmentUid, pearlId: h.pearlId, skillId: h.skillId, position: h.position };
+    });
+    //获取当前英雄列表映射
+    const heroesList=await getHeroMapping();
+    const pearlMap=await getPearlMapping();
+    //恢复鱼珠配置
+    const targetPearlMap = Object.values(teamToLoad.pearlMap);
+    //卸载所有鱼珠的技能
+    const pearlsToUnload  = Object.values(pearlMap).filter((pearl) => {
+      return pearl.skillId > 0;
+    }).map((pearl) => ({ pearlId: pearl.pearlId}));
+//根据teamInfo中的attachmentUid找到对应的heroId，并调用换将指令进行替换
+    for (const pos in teamInfo) {
+      const hero = teamInfo[pos];
+      //调换英雄
+      //检查目标洗练套是否被占用
+      const switchHeroId = await getHeroIdByAttachmentUid(heroesList, hero.attachmentUid);
+      if (switchHeroId) {
+        teamInfo[pos].targetHeroId = switchHeroId;
+      } else {
+        message.warning(`未找到英雄 ${hero.heroId} 的映射关系，可能无法正确加载`);
+      }
+      if(switchHeroId != hero.heroId){
+        //洗练套装被占用，先换将
+        try{
+          await tokenStore.sendMessageWithPromise(tokenStore.selectedToken.id, "hero_exchange", {heroId: hero.heroId,targetHeroId: switchHeroId});
+          await new Promise(r => setTimeout(r, 500))
+        }catch(e){
+            console.error(`调换英雄 ${hero.heroId} 失败:`, e);
+        }
+      }
+      //先下阵
+      await tokenStore.sendMessageWithPromise(tokenStore.selectedToken.id, "hero_gobackbattle", {slot: hero.position});
+      await new Promise(r => setTimeout(r, 500))
+
+      //再上阵
+      await tokenStore.sendMessageWithPromise(tokenStore.selectedToken.id, "hero_gointobattle", {slot: hero.position, heroId: hero.heroId});
+      await new Promise(r => setTimeout(r, 500))
+    }
+  } catch (e) {
+    console.error("应用阵容设置失败:", e);
   } 
 }; 
 
