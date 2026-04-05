@@ -188,6 +188,7 @@ const performBulkDailyTask = async (message:any) => {
           for (let i = 0; i < 4; i++) {
             try {
               await executeGameCommand(token.id, 'system_mysharecallback', { isSkipShareCard: true, type: 2 }, `挂机加钟 ${i + 1}`)
+              await waitForSeconds(1)
             } catch (e) {
               console.warn(`BulkDailyTask: 加钟失败 [${token.id}]`, e)
             }
@@ -197,6 +198,7 @@ const performBulkDailyTask = async (message:any) => {
         for (let i = 0; i < remainingHangUpCount; i++) {
           try {
             await executeGameCommand(token.id, 'system_claimhangupreward', {}, '领取挂机奖励')
+            await waitForSeconds(1)
           } catch (e) {
             console.warn(`BulkDailyTask: 领取挂机奖励失败 [${token.id}]`, e)
           }
@@ -210,6 +212,7 @@ const performBulkDailyTask = async (message:any) => {
         } catch (e) {
           console.warn(`BulkDailyTask: 赠送好友金币失败 [${token.id}]`, e)
         }
+        await waitForSeconds(0.5)
       }
 
       if (!isTaskCompleted(2)) {
@@ -218,6 +221,7 @@ const performBulkDailyTask = async (message:any) => {
         } catch (e) {
           console.warn(`BulkDailyTask: 分享游戏失败 [${token.id}]`, e)
         }
+        await waitForSeconds(0.5)
       }
 
       if (!isTaskCompleted(4)) {
@@ -226,12 +230,14 @@ const performBulkDailyTask = async (message:any) => {
         } catch (e) {
           console.warn(`BulkDailyTask: 免费招募失败 [${token.id}]`, e)
         }
+        await waitForSeconds(0.5)
         if (settings.payRecruit) {
           try {
             await executeGameCommand(token.id, 'hero_recruit', { recruitType: 1, recruitNumber: 1 }, '付费招募')
           } catch (e) {
             console.warn(`BulkDailyTask: 付费招募失败 [${token.id}]`, e)
           }
+          await waitForSeconds(0.5)
         }
       }
 
@@ -241,6 +247,7 @@ const performBulkDailyTask = async (message:any) => {
           } catch (e) {
             console.warn(`BulkDailyTask: 开启木质宝箱失败 [${token.id}]`, e)
           }
+          await waitForSeconds(0.5)
       }
 
       if (!isTaskCompleted(14) && settings.claimBottle) {
@@ -249,6 +256,7 @@ const performBulkDailyTask = async (message:any) => {
         } catch (e) {
           console.warn(`BulkDailyTask: 领取盐罐奖励失败 [${token.id}]`, e)
         }
+        await waitForSeconds(0.5)
       }
 
       
@@ -296,6 +304,7 @@ const performBulkDailyTask = async (message:any) => {
           for (let i = 0; i < 3; i++) {
             await executeGameCommand(token.id, 'system_buygold', { buyNum: 1 }, `免费点金 ${i + 1}`)
           }
+          await waitForSeconds(1)
         } catch (e) {
           console.warn(`BulkDailyTask: 点金失败 [${token.id}]`, e)
         }
@@ -316,6 +325,7 @@ const performBulkDailyTask = async (message:any) => {
             } catch (e) {
               console.warn(`BulkDailyTask: 俱乐部BOSS战斗失败 [${token.id}]`, e)
             }
+            await waitForSeconds(0.5)
           }
         }
       }
@@ -326,17 +336,27 @@ const performBulkDailyTask = async (message:any) => {
         } catch (e) {
           console.warn(`BulkDailyTask: 军团BOSS失败 [${token.id}]`, e)
         }
+        await waitForSeconds(0.5)
       }
 
       try { await executeGameCommand(token.id, 'system_signinreward', {}, '福利签到') } catch (e) { console.warn('签到失败', e) }
+      await waitForSeconds(0.5)
       try { await executeGameCommand(token.id, 'legion_signin', {}, '俱乐部') } catch (e) { console.warn('俱乐部签到失败', e) }
+      await waitForSeconds(0.5)
       try { await executeGameCommand(token.id, 'discount_claimreward', {}, '领取每日礼包') } catch (e) { console.warn('领取每日礼包失败', e) }
+      await waitForSeconds(0.5)
       try { await executeGameCommand(token.id, 'collection_claimfreereward', {}, '领取每日免费奖励') } catch (e) { console.warn('领取每日免费奖励失败', e) }
+      await waitForSeconds(0.5)
       try { await executeGameCommand(token.id, 'card_claimreward', {}, '领取免费礼包') } catch (e) { console.warn('领取免费礼包失败', e) }
+      await waitForSeconds(0.5)
       try { await executeGameCommand(token.id, 'card_claimreward', { cardId: 4003 }, '领取永久卡礼包') } catch (e) { console.warn('领取永久卡礼包失败', e) }
+      await waitForSeconds(0.5)
       try { await executeGameCommand(token.id, 'mail_claimallattachment', {}, '领取邮件奖励') } catch (e) { console.warn('领取邮件奖励失败', e) }
+      await waitForSeconds(0.5)
       try { await executeGameCommand(token.id, 'collection_goodslist', {}, '开始领取珍宝阁礼包') } catch (e) { console.warn('开始领取珍宝阁礼包失败', e) }
+      await waitForSeconds(0.5)
       try { await executeGameCommand(token.id, 'collection_claimfreereward', {}, '领取珍宝阁免费礼包') } catch (e) { console.warn('领取珍宝阁免费礼包失败', e) }
+      await waitForSeconds(0.5)
 
       if (isTodayAvailable(statisticsTime['artifact:normal:lottery:time']) && isTodayAvailable(statisticsTime['ar:normal:lo:cnt'])) {
         for (let i = 0; i < 3; i++) {
@@ -345,6 +365,7 @@ const performBulkDailyTask = async (message:any) => {
           } catch (e) {
             console.warn(`BulkDailyTask: 免费钓鱼失败 [${token.id}]`, e)
           }
+          await waitForSeconds(0.5)
         }
       }
 
@@ -356,6 +377,7 @@ const performBulkDailyTask = async (message:any) => {
           } catch (e) {
             console.warn(`BulkDailyTask: 灯神免费扫荡失败 [${token.id}]`, e)
           }
+          await waitForSeconds(0.5)
         }
       }
 
@@ -366,25 +388,31 @@ const performBulkDailyTask = async (message:any) => {
           } catch (e) {
             console.warn(`BulkDailyTask:深海灯神扫荡失败 [${token.id}]`, e)
           }
+          await waitForSeconds(0.5)
       }
 
       // 领取免费扫荡卷
       if (isTodayAvailable(statisticsTime[`genie:sweep:buy`])) {
         for (let i = 0; i < 3; i++) {
           try { await executeGameCommand(token.id, 'genie_buysweep', {}, `领取免费扫荡卷 ${i + 1}`) } catch (e) { console.warn('领取免费扫荡卷失败', e) }
+          await waitForSeconds(0.5)
         }
       }
 
       if (!isTaskCompleted(12) && settings.blackMarketPurchase) {
         try { await executeGameCommand(token.id, 'store_purchase', { goodsId: 1 }, '黑市购买1次物品') } catch (e) { console.warn('黑市购买失败', e) }
+        await waitForSeconds(0.5)
       }
 
       for (let taskId = 1; taskId <= 10; taskId++) {
         try { await executeGameCommand(token.id, 'task_claimdailypoint', { taskId }, `领取任务奖励${taskId}`, 5000) } catch (e) { console.warn('领取任务奖励失败', e) }
+        await waitForSeconds(1)
       }
 
       try { await executeGameCommand(token.id, 'task_claimdailyreward', {}, '领取日常任务奖励') } catch (e) { console.warn('日常奖励领取失败', e) }
+      await waitForSeconds(0.5)
       try { await executeGameCommand(token.id, 'task_claimweekreward', {}, '领取周常任务奖励') } catch (e) { console.warn('周常奖励领取失败', e) }
+      await waitForSeconds(0.5)
 
       if(isWeirdTowerActivityOpen()){
       try{
@@ -403,12 +431,13 @@ const performBulkDailyTask = async (message:any) => {
           }else{
             break
           }
-          await waitForSeconds(0.3)
+          await waitForSeconds(1)
         }
       }catch(e){console.warn('处理邪将塔任务失败', e)}
       // 领取邪将塔任务奖励
       for (let taskId = 1; taskId <= 3; taskId++) {
         try { await executeGameCommand(token.id, 'evotower_claimtask', { taskId:taskId }, `领取邪将塔任务奖励${taskId}`, 5000) } catch (e) { console.warn('领取邪将塔任务奖励失败', e) }
+        await waitForSeconds(1)
       }
     }
 
@@ -419,6 +448,7 @@ const performBulkDailyTask = async (message:any) => {
     } catch (error) {
       console.error('BulkDailyTask 处理 token 失败:', token.id, error)
     }
+    await waitForSeconds(2)
   }
 
   console.info('BulkDailyTask 执行完成')

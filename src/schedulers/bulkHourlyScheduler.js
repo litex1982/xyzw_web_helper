@@ -6,7 +6,7 @@ let scheduledCheckerTimer = null
 
 // Locking (localStorage) similar to bulkDailyScheduler
 const LOCK_KEY = 'bulkHourlyScheduler_lock'
-const LOCK_TTL = 30 * 60 * 1000 // 30 minutes
+const LOCK_TTL = 60 * 60 * 1000 // 60 minutes
 const sessionId = 'bulkhourly_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
 
 const tryAcquireLock = () => {
@@ -131,7 +131,7 @@ const processTokensForHourlyTask = async (token, message) => {
     if (!tokenStore.selectedToken) tokenStore.selectToken(token.id)
     const tokenId = token.id
     tokenStore.sendMessage(tokenId, 'bottlehelper_stop')
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await waitForSeconds(2)
     tokenStore.sendMessage(tokenId, 'bottlehelper_start')
     tokenStore.sendMessage(tokenId, 'role_getroleinfo')
     await waitForSeconds(2)
