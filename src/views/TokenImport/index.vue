@@ -98,7 +98,7 @@
         <div class="tokens-grid" v-if="viewMode === 'card'">
           <a-card v-for="token in tokenStore.gameTokens.filter(t => {
             // 全拼
-            const full = pinyin(t.name, { tone: false, type: 'array' }).join('').toLowerCase();
+            const full = pinyin(t.name, { toneType: 'none', type: 'array' }).join('').toLowerCase();
             // 首字母
             const first = pinyin(t.name, { pattern: 'first', toneType: 'none', type: 'array'}).join('').toLowerCase();
              return t.name.toLocaleLowerCase().includes(tokenfilterText.toLocaleLowerCase()) || full.includes(tokenfilterText.toLocaleLowerCase()) || first.includes(tokenfilterText.toLocaleLowerCase()); 
