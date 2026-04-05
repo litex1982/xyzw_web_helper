@@ -91,9 +91,18 @@
             </n-dropdown>
           </div>
         </div>
-
+             <div>
+            <!-- 过滤功能，根据输入得token名字过滤token列表 -->
+             <n-input v-model:value="tokenfilterText" placeholder="过滤Token..." clearable style="width: 200px;" />
+             </div>
         <div class="tokens-grid" v-if="viewMode === 'card'">
-          <a-card v-for="token in tokenStore.gameTokens" :key="token.id" :class="{
+          <a-card v-for="token in tokenStore.gameTokens.filter(t => {
+            // 全拼
+            const full = pinyin(t.name, { tone: false, type: 'array' }).join('').toLowerCase();
+            // 首字母
+            const first = pinyin(t.name, { pattern: 'first', toneType: 'none', type: 'array'}).join('').toLowerCase();
+             return t.name.toLocaleLowerCase().includes(tokenfilterText.toLocaleLowerCase()) || full.includes(tokenfilterText.toLocaleLowerCase()) || first.includes(tokenfilterText.toLocaleLowerCase()); 
+            })" :key="token.id" :class="{
             'token-card': true,
             active: selectedTokenId === token.id
           }" @click="selectToken(token)">
@@ -364,6 +373,7 @@ import { h, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { startScheduledBulkHourly, stopScheduledBulkHourly, BulkHourlyTask } from '@/schedulers/bulkHourlyScheduler'
 import { startScheduledBulkDaily, stopScheduledBulkDaily } from '@/schedulers/bulkDailyScheduler'
+import { pinyin } from 'pinyin-pro';
 
 // 接收路由参数
 const props = defineProps({
@@ -396,6 +406,9 @@ const viewMode = ref('card')
 // 备注编辑状态管理
 const editingRemark = ref(null); // 当前正在编辑备注的tokenId
 const tempRemarks = ref({}); // 临时保存编辑中的备注内容
+
+// Token过滤文本
+const tokenfilterText = ref('')
 
 // 编辑表单
 const editForm = reactive({
