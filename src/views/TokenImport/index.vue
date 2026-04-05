@@ -49,6 +49,9 @@
 
       <!-- Token列表 -->
       <div v-if="tokenStore.hasTokens" class="tokens-section">
+        <div>当前选中账号: <span style="font-weight: bold;">
+          {{ tokenStore.selectedToken ? tokenStore.selectedToken.name : '无' }}
+        </span></div>
         <div class="section-header">
           <n-space align="center">
             <h2>我的Token列表 ({{ tokenStore.gameTokens.length }}个)</h2>
