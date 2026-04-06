@@ -1091,15 +1091,24 @@ const refreshTeamInfo = async () => {
 
   loading.value = true;
   try {
-    const availableTeamIds =
-      availableTeams.value.length > 0
-        ? availableTeams.value
-        : [1, 2, 3, 4, 5, 6];
+    let presetTeamResult = await tokenStore.sendMessageWithPromise(
+      tokenId,
+      "presetteam_getinfo",
+      {},
+    );
+    const teamsFromGame =
+      presetTeamResult?.presetTeamInfo?.presetTeamInfo || {};
+    const gameTeamIds = Object.keys(teamsFromGame)
+      .filter((k) => /^\d+$/.test(k))
+      .map(Number)
+      .sort((a, b) => a - b);
+    const availableTeamIds = gameTeamIds.length
+      ? gameTeamIds
+      : [1, 2, 3, 4, 5, 6];
 
-    let targetTeamId = currentTeamId.value;
+    let targetTeamId = presetTeamResult?.presetTeamInfo?.useTeamId || 1;
     if (!availableTeamIds.includes(targetTeamId)) {
       targetTeamId = availableTeamIds[0];
-      currentTeamId.value = targetTeamId;
     }
 
     const currentIndex = availableTeamIds.indexOf(targetTeamId);
@@ -1107,21 +1116,21 @@ const refreshTeamInfo = async () => {
       availableTeamIds[currentIndex === 0 ? 1 : currentIndex - 1] ||
       availableTeamIds[0];
 
-    if (otherTeamId !== targetTeamId) {
+    if (otherTeamId !== targetTeamId && availableTeamIds.length > 1) {
       await tokenStore.sendMessageWithPromise(tokenId, "presetteam_saveteam", {
         teamId: otherTeamId,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
       await tokenStore.sendMessageWithPromise(tokenId, "presetteam_saveteam", {
         teamId: targetTeamId,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
     }
 
-    const presetTeamResult = await tokenStore.sendMessageWithPromise(
+    presetTeamResult = await tokenStore.sendMessageWithPromise(
       tokenId,
       "presetteam_getinfo",
       {},
