@@ -100,6 +100,9 @@
                 <div class="hero-name">
                   {{ getHeroName(hero.heroId) || `武将${hero.heroId}` }}
                 </div>
+                <div class="hero-level">
+                  等级: {{ hero.level }}
+                </div>
                 <div class="hero-fish" v-if="getFishInfo(hero.artifactId)">
                   {{ getFishInfo(hero.artifactId).name }}
                 </div>
@@ -726,6 +729,7 @@ const currentTeamHeroes = computed(() => {
       heroId: hero?.heroId || hero?.id,
       artifactId: hero?.artifactId || null,
       attachmentUid: hero?.attachmentUid || null,
+      level: hero?.level || null,
     }))
     .filter((h) => h.heroId)
     .sort((a, b) => a.position - b.position);
@@ -1419,7 +1423,7 @@ const applyFishSetting = async (localTeamSettings) => {
     for await (const pearlToUnload of pearlsToUnload) {
         try{
           await tokenStore.sendMessageWithPromise(tokenStore.selectedToken.id, "pearl_unloadskill", {pearlId: pearlToUnload.pearlId});
-          await new Promise(r => setTimeout(r, 1000))
+          await new Promise(r => setTimeout(r, 200))
         }catch(e){
             console.error(`卸载英雄鱼珠 ${pearlToUnload.pearlId} 失败:`, e);
         }
@@ -1431,7 +1435,7 @@ const applyFishSetting = async (localTeamSettings) => {
     for await (const pearlToLoad of pearlsToload) {
         try{
           await tokenStore.sendMessageWithPromise(tokenStore.selectedToken.id, "pearl_replaceskill", {pearlId: pearlToLoad.pearlId, skillId: pearlToLoad.skillId});
-          await new Promise(r => setTimeout(r, 1000))
+          await new Promise(r => setTimeout(r, 200))
         }catch(e){
             console.error(`加载鱼珠技能 ${pearlToLoad.pearlId} 失败:`, e);
         }
@@ -1443,7 +1447,7 @@ const applyFishSetting = async (localTeamSettings) => {
       }).map((hero) => ({ heroId: hero.heroId, artifactId: hero.artifactId, pearlId: hero.pearlId }))) {
         try{
           await tokenStore.sendMessageWithPromise(tokenStore.selectedToken.id, "artifact_unload", {heroId: heroToUnload.heroId});
-          await new Promise(r => setTimeout(r, 1000))
+          await new Promise(r => setTimeout(r, 200))
         }catch(e){
             console.error(`卸载英雄鱼灵 ${heroToUnload.heroId} 失败:`, e); 
         }
@@ -1457,7 +1461,7 @@ const applyFishSetting = async (localTeamSettings) => {
   ) {
         //因为英雄还没有换位置，以attachmentUid为准找到当前英雄对应的heroId进行挂载
         await tokenStore.sendMessageWithPromise(tokenStore.selectedToken.id, "artifact_load", {heroId: heroToLoad.tempHeroId, itemId: heroToLoad.artifactId, targetHeroId: -1, pearlId: heroToLoad.pearlId});
-        await new Promise(r => setTimeout(r, 1000))
+        await new Promise(r => setTimeout(r, 200))
     }
   } catch (e) {
     console.error("应用鱼灵设置失败:", e);
@@ -1472,17 +1476,9 @@ const applyTeamFormationSetting = async (localTeamSettings) => {
     teamToLoad.heroes.forEach((h) => {
       teamInfo[String(h.position)] = { heroId: h.heroId, artifactId: h.artifactId, attachmentUid: h.attachmentUid, pearlId: h.pearlId, skillId: h.skillId, position: h.position };
     });
-    //获取当前英雄列表映射
-    const heroesList=await getHeroMapping();
-    const pearlMap=await getPearlMapping();
-    //恢复鱼珠配置
-    const targetPearlMap = Object.values(teamToLoad.pearlMap);
-    //卸载所有鱼珠的技能
-    const pearlsToUnload  = Object.values(pearlMap).filter((pearl) => {
-      return pearl.skillId > 0;
-    }).map((pearl) => ({ pearlId: pearl.pearlId}));
-//根据teamInfo中的attachmentUid找到对应的heroId，并调用换将指令进行替换
     for (const pos in teamInfo) {
+      //获取当前英雄列表映射
+      const heroesList=await getHeroMapping();
       const hero = teamInfo[pos];
       //调换英雄
       //检查目标洗练套是否被占用
