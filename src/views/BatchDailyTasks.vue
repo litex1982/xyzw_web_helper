@@ -1888,7 +1888,7 @@ const batchEvilTower= async () => {
             await tokenStore.sendMessageWithPromise(token.id, 'evotower_readyfight', {})
             await tokenStore.sendMessageWithPromise(token.id, 'evotower_fight', { battleNum: 1, winNum: 1 })
             addLog({ time: new Date().toLocaleTimeString(), message: `=== ${token.name} 邪将塔战斗${currentTower}已完成, 体力${evotowerInfo?.evoTower?.energy} ===`, type: 'success' })
-          await new Promise(r => setTimeout(r, 500))
+          await new Promise(r => setTimeout(r, 1500))
           evotowerInfo = await tokenStore.sendMessageWithPromise(token.id, 'evotower_getinfo', {})
         }
       tokenStatus.value[tokenId] = 'completed'
