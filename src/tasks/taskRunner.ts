@@ -431,7 +431,7 @@ const performBulkDailyTask = async (message:any) => {
           }else{
             break
           }
-          await waitForSeconds(1)
+          await waitForSeconds(1.5)
         }
       }catch(e){console.warn('处理邪将塔任务失败', e)}
       // 领取邪将塔任务奖励
