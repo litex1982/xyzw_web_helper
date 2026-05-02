@@ -969,6 +969,7 @@ export class XyzwWebSocketClient {
       // 特殊响应映射 - 有些命令有独立响应，有些用同步响应
       'task_claimdailyrewardresp': 'task_claimdailyreward',
       'task_claimweekrewardresp': 'task_claimweekreward',
+      'gacha_drawrewardresp': 'gacha_drawreward',
 
       // 同步响应映射（优先级低）
       'syncresp': ['system_mysharecallback', 'task_claimdailypoint', 'role_commitpassword'],

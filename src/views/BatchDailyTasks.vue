@@ -2261,7 +2261,7 @@ const batchAddHangUpTime = async () => {
   message.success('批量加钟结束')
 }
 
-gachaDrawReward = async () => {
+const gachaDrawReward = async () => {
   if (selectedTokens.value.length === 0) return
   isRunning.value = true
   shouldStop.value = false
