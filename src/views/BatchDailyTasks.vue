@@ -117,6 +117,13 @@
             >
               一键黑市周购买
             </n-button>
+            <n-button
+              size="small"
+              @click="gachaDrawReward"
+              :disabled="isRunning || selectedTokens.length === 0"
+            >
+              一键免费扭蛋
+            </n-button>
           </n-space>
           <n-space vertical>
             <n-checkbox :checked="isAllSelected" :indeterminate="isIndeterminate" @update:checked="handleSelectAll">
@@ -2252,6 +2259,44 @@ const batchAddHangUpTime = async () => {
   isRunning.value = false
   currentRunningTokenId.value = null
   message.success('批量加钟结束')
+}
+
+gachaDrawReward = async () => {
+  if (selectedTokens.value.length === 0) return
+  isRunning.value = true
+  shouldStop.value = false
+  logs.value = []
+  // Reset status
+  selectedTokens.value.forEach(id => {
+    tokenStatus.value[id] = 'waiting'
+  })
+  for (const tokenId of selectedTokens.value) {
+    if (shouldStop.value) break
+    currentRunningTokenId.value = tokenId
+    tokenStatus.value[tokenId] = 'running'
+    currentProgress.value = 0
+    const token = tokens.value.find(t => t.id === tokenId)
+    try {
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== 开始一键扭蛋: ${token.name} ===`, type: 'info' })
+      await ensureConnection(tokenId)
+      if (shouldStop.value) break
+      addLog({ time: new Date().toLocaleTimeString(), message: `执行免费扭蛋`, type: 'info' })
+      await tokenStore.sendMessageWithPromise(tokenId, 'gacha_drawreward', { num: 1, isGroup: false  }, 5000)
+      await new Promise(r => setTimeout(r, 500))
+      tokenStatus.value[tokenId] = 'completed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== ${token.name} 扭蛋完成 ===`, type: 'success' })
+    } catch (error) {
+      console.error(error)
+      tokenStatus.value[tokenId] = 'failed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `扭蛋失败: ${error.message || '未知错误'}`, type: 'error' })
+    }
+    currentProgress.value = 100
+    await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
+  }
+  isRunning.value = false
+  currentRunningTokenId.value = null
+  message.success('批量扭蛋结束')
 }
 
 

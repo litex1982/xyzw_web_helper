@@ -284,6 +284,8 @@ export function registerDefaultCommands(reg) {
     .register("pearl_unloadskill", { pearlId: 1 })
     .register("pearl_replaceskill", { pearlId: 1, skillId: 201 })
     .register("lordweapon_changedefaultweapon")
+    //宠物抽奖
+    .register("gacha_drawreward", { num: 1, isGroup: false })
 
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
