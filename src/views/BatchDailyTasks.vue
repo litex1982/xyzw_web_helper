@@ -124,6 +124,13 @@
             >
               一键免费扭蛋
             </n-button>
+            <n-button
+              size="small"
+              @click="showAutumnModal = true"
+              :disabled="isRunning || selectedTokens.length === 0"
+            >
+              一键中秋投票
+            </n-button>
           </n-space>
           <n-space vertical>
             <n-checkbox :checked="isAllSelected" :indeterminate="isIndeterminate" @update:checked="handleSelectAll">
@@ -508,6 +515,28 @@
       </div>
     </n-modal>
 
+    <!-- 中秋投票数输入-->
+    <n-modal v-model:show="showAutumnModal" preset="card" :title="helperModalTitle"
+      style="width: 90%; max-width: 400px">
+      <div class="settings-content">
+          <!-- 投票数量 -->
+          <div class="setting-item">
+            <label class="setting-label">投票数量</label>
+            <n-input-number 
+              v-model:value="autumnQuantity" 
+              :min="1" 
+              :max="3000" 
+              :step="1"
+              placeholder="请输入投票数量"
+            />
+          </div>
+        <div class="modal-actions" style="margin-top: 20px; text-align: right;">
+          <n-button @click="showAutumnModal = false" style="margin-right: 12px">取消</n-button>
+          <n-button type="primary" @click="executAutumnRace">开始执行</n-button>
+        </div>
+      </div>
+    </n-modal>
+
     <!-- Tasks List Modal -->
     <n-modal v-model:show="showTasksModal" preset="card" title="定时任务列表" style="width: 90%; max-width: 800px">
       <div class="tasks-list" style="max-height: 600px; overflow-y: auto;">
@@ -697,10 +726,13 @@ const helperModalTitle = computed(() => {
 //黑市周选项
 const showActivityStoreBuyGoodsModal = ref(false);
 
+//Autumn Feature
+
 // ======================
 // Legacy Gift Feature
 // ======================
-
+const showAutumnModal = ref(false);
+const autumnQuantity = ref(1);
 // Legacy Gift Modal State
 const showLegacyGiftModal = ref(false);
 const recipientIdInput = ref('');
@@ -1363,6 +1395,7 @@ const queryRecipientInfo = async () => {
     });
   }
 };
+
 
 const confirmLegacyGift = async () => {
   if (!recipientIdInput.value || !recipientInfo.value) {
@@ -2297,6 +2330,45 @@ const gachaDrawReward = async () => {
   isRunning.value = false
   currentRunningTokenId.value = null
   message.success('批量扭蛋结束')
+}
+
+const executAutumnRace = async () => {
+  if (selectedTokens.value.length === 0) return
+  showAutumnModal.value = false
+  isRunning.value = true
+  shouldStop.value = false
+  logs.value = []
+  // Reset status
+  selectedTokens.value.forEach(id => {
+    tokenStatus.value[id] = 'waiting'
+  })
+  for (const tokenId of selectedTokens.value) {
+    if (shouldStop.value) break
+    currentRunningTokenId.value = tokenId
+    tokenStatus.value[tokenId] = 'running'
+    currentProgress.value = 0
+    const token = tokens.value.find(t => t.id === tokenId)
+    try {
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== 开始一键中秋排位: ${token.name} ===`, type: 'info' })
+      await ensureConnection(tokenId)
+      if (shouldStop.value) break
+      addLog({ time: new Date().toLocaleTimeString(), message: `执行中秋排位 ${autumnQuantity.value}`, type: 'info' })
+      await tokenStore.sendMessageWithPromise(tokenId, 'autumn_useitem', { num: autumnQuantity.value }, 5000)
+      await new Promise(r => setTimeout(r, 100))
+      tokenStatus.value[tokenId] = 'completed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== ${token.name} 中秋完成 ===`, type: 'success' })
+    } catch (error) {
+      console.error(error)
+      tokenStatus.value[tokenId] = 'failed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `中秋失败: ${error.message || '未知错误'}`, type: 'error' })
+    }
+    currentProgress.value = 100
+    await new Promise(r => setTimeout(r, 100))
+    tokenStore.closeWebSocketConnection(tokenId)
+  }
+  isRunning.value = false
+  currentRunningTokenId.value = null
+  message.success('批量中秋结束')
 }
 
 

@@ -286,6 +286,7 @@ export function registerDefaultCommands(reg) {
     .register("lordweapon_changedefaultweapon")
     //宠物抽奖
     .register("gacha_drawreward", { num: 1, isGroup: false })
+    .register("autumn_useitem", { itemNum: 1 })
 
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {

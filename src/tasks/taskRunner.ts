@@ -414,6 +414,13 @@ const performBulkDailyTask = async (message:any) => {
       try { await executeGameCommand(token.id, 'task_claimweekreward', {}, '领取周常任务奖励') } catch (e) { console.warn('周常奖励领取失败', e) }
       await waitForSeconds(0.5)
 
+      const dayOfWeek = new Date().getDay()
+      //周2，周4，周6开放
+      if (dayOfWeek === 2 || dayOfWeek === 4 || dayOfWeek === 6) {
+        try { await executeGameCommand(token.id, 'gacha_drawreward', { num: 1, isGroup: false}, '免费扭蛋') } catch (e) { console.warn('免费扭蛋失败', e) }
+        await waitForSeconds(0.5)
+      }
+
       if(isWeirdTowerActivityOpen()){
       try{
           // 邪将塔每日任务
