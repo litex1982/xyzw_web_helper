@@ -3955,7 +3955,15 @@ const batchLegacyGiftSendEnhanced = async () => {
     currentProgress.value = 0
 
     const token = tokens.value.find(t => t.id === tokenId)
-
+      //检查当天是否是周五
+      const isFriday = new Date().getDay() === 5;
+      //如果是周五得话，TowerId得格式是yyMMdd,否则是上一周得周五得yyMMdd
+      var towerId = isFriday ? new Date().toISOString().slice(2, 10).replace(/-/g, '') : (() => {
+        const lastFriday = new Date();
+        lastFriday.setDate(lastFriday.getDate() - ((lastFriday.getDay() + 2) % 7));
+        return lastFriday.toISOString().slice(2, 10).replace(/-/g, '');
+      })();
+      towerId=`${towerId}1`;
       try {
         addLog({
           time: new Date().toLocaleTimeString(),
@@ -3969,7 +3977,7 @@ const batchLegacyGiftSendEnhanced = async () => {
         let res = await tokenStore.sendMessageWithPromise(
           tokenId,
           "towers_getinfo",
-          {},
+          {actId: towerId},
           5000
         );
         
@@ -4096,12 +4104,12 @@ const batchLegacyGiftSendEnhanced = async () => {
 
             while (loop && !shouldStop.value) {
                 if (needStart) {
-                    await tokenStore.sendMessageWithPromise(tokenId, "towers_start", { towerType: type }, 5000);
+                    await tokenStore.sendMessageWithPromise(tokenId, "towers_start", { towerType: type, actId: towerData.actId }, 5000);
                     // 稍微等待一下
                     await new Promise(r => setTimeout(r, 500));
                 }
 
-                const fightRes = await tokenStore.sendMessageWithPromise(tokenId, "towers_fight", { towerType: type }, 5000);
+                const fightRes = await tokenStore.sendMessageWithPromise(tokenId, "towers_fight", { towerType: type, actId: towerData.actId }, 5000);
                 const battleData = fightRes?.battleData;
                 const curHP = battleData?.result?.accept?.ext?.curHP;
                 
@@ -4118,7 +4126,7 @@ const batchLegacyGiftSendEnhanced = async () => {
                      failCount = 0;
 
                      // 刷新数据
-                     res = await tokenStore.sendMessageWithPromise(tokenId, "towers_getinfo", {}, 5000);
+                     res = await tokenStore.sendMessageWithPromise(tokenId, "towers_getinfo", {actId: towerData.actId}, 5000);
                      towerData = res.actId ? res : (res.towerData && res.towerData.actId ? res.towerData : res);
                      levelRewardMap = towerData.levelRewardMap || {};
 
