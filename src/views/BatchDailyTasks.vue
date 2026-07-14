@@ -100,6 +100,9 @@
             >
               批量功法残卷领取
             </n-button>
+            <n-button size="small" @click="handleShowSaltcup26Modal" :disabled="isRunning || selectedTokens.length === 0">
+              批量足球竞猜
+            </n-button>
             <n-button size="small" @click="showLegacyGiftModal = true" :disabled="isRunning || selectedTokens.length === 0">
               批量功法残卷赠送
             </n-button>
@@ -320,6 +323,30 @@
             >保存设置</n-button
           >
         </div>
+    </n-modal>
+
+    <n-modal  v-model:show="showSaltcup26Modal" preset="card" title="批量足球竞猜" style="width: 90%; max-width: 600px">
+      <div class="settings-content">
+        <div class="setting-item" style="margin-bottom: 16px;">
+          <label class="setting-label">比赛ID</label>
+          <div>{{ betInfo.matchId || '暂无比赛数据' }}</div>
+        </div>
+        <div class="setting-item" style="margin-bottom: 16px;">
+          <label class="setting-label">对阵</label>
+          <div>{{ betInfo.leftRole || '左边' }} vs {{ betInfo.rightRole || '右边' }}</div>
+        </div>
+        <div class="setting-item" style="margin-bottom: 16px;">
+          <label class="setting-label">下注选择</label>
+          <n-radio-group v-model:value="selectedBetChoice">
+            <n-radio :value="1">左边</n-radio>
+            <n-radio :value="2">中间</n-radio>
+            <n-radio :value="3">右边</n-radio>
+          </n-radio-group>
+        </div>
+        <div class="modal-actions" style="margin-top: 20px; text-align: right;">
+          <n-button type="primary" @click="submitSaltcup26Choice">递交</n-button>
+        </div>
+      </div>
     </n-modal>
 
         <!-- Legacy Gift Modal -->
@@ -733,6 +760,11 @@ const showActivityStoreBuyGoodsModal = ref(false);
 // ======================
 const showAutumnModal = ref(false);
 const autumnQuantity = ref(1);
+//足球竞猜
+const showSaltcup26Modal = ref(false);
+const betInfo = reactive({ matchId: '', leftRole: '', rightRole: '' });
+const selectedBetChoice = ref(null);
+const confirmedBetChoice = ref(null);
 // Legacy Gift Modal State
 const showLegacyGiftModal = ref(false);
 const recipientIdInput = ref('');
@@ -1033,6 +1065,50 @@ const legion_storebuygoods = async () => {
         message: `发送购买请求...`,
         type: "info",
       });
+      
+      try{
+        await tokenStore.sendMessageWithPromise(
+          tokenId,
+          "legion_storebuygoods",
+          { "id": 205,  "num": 4},
+          5000,
+        );
+      }catch(error){
+        addLog({
+            time: new Date().toLocaleTimeString(),
+            message: `购买宠物蛋失败: ${error.message}`,
+            type: "error",
+          });
+      }
+      try{
+        await tokenStore.sendMessageWithPromise(
+          tokenId,
+          "legion_storebuygoods",
+          { "id": 7,  "num": 0},
+          5000,
+        );
+      }catch(error){
+        addLog({
+            time: new Date().toLocaleTimeString(),
+            message: `购买俱乐部红碎失败: ${error.message}`,
+            type: "error",
+          });
+      }
+      try{
+        await tokenStore.sendMessageWithPromise(
+          tokenId,
+          "legion_storebuygoods",
+          { "id": 8,  "num": 0},
+          5000,
+        );
+      }catch(error){
+        addLog({
+            time: new Date().toLocaleTimeString(),
+            message: `购买俱乐部白玉失败: ${error.message}`,
+            type: "error",
+          });
+      }
+
       const result = await tokenStore.sendMessageWithPromise(
         tokenId,
         "legion_storebuygoods",
@@ -1416,6 +1492,123 @@ const confirmLegacyGift = async () => {
   // 清空安全密码
   securityPassword.value = '';
 };
+
+const handleShowSaltcup26Modal = async () => {
+  showSaltcup26Modal.value = true;
+  selectedBetChoice.value = null;
+  confirmedBetChoice.value = null;
+  betInfo.matchId = '';
+  betInfo.leftRole = '';
+  betInfo.rightRole = '';
+
+  const firstTokenId = selectedTokens.value[0];
+  const token = tokens.value.find((t) => t.id === firstTokenId);
+  // 确保WebSocket连接
+  addLog({
+    time: new Date().toLocaleTimeString(),
+    message: `正在建立WebSocket连接...`,
+    type: 'info',
+  });
+
+  // 使用现有的ensureConnection函数，它已经包含了重连机制
+  await ensureConnection(firstTokenId);
+
+  addLog({
+    time: new Date().toLocaleTimeString(),
+    message: `WebSocket连接成功`,
+    type: 'success',
+  });
+
+  // 发送查询命令
+  addLog({
+    time: new Date().toLocaleTimeString(),
+    message: `正在发送查询命令`,
+    type: 'info',
+  });
+
+  const resp = await tokenStore.sendMessageWithPromise(
+    firstTokenId,
+    'saltcup26_getbetinfo',
+    {},
+    10000
+  );
+  const matchList = Array.isArray(resp?.matchList) ? resp.matchList : [];
+  const firstMatch = matchList[0] || {};
+  betInfo.matchId = firstMatch?.matchId || '';
+  betInfo.leftRole = firstMatch?.leftRole?.name || firstMatch?.leftRole || '';
+  betInfo.rightRole = firstMatch?.rightRole?.name || firstMatch?.rightRole || '';
+
+  addLog({
+    time: new Date().toLocaleTimeString(),
+    message: `查询到足球竞猜信息: ${betInfo.matchId} ${betInfo.leftRole} vs ${betInfo.rightRole}`,
+    type: 'info',
+  });
+};
+
+const submitSaltcup26Choice = async () => {
+  if (!betInfo.matchId) {
+    message.warning('未查询到有效比赛信息，请先重试');
+    return;
+  }
+  if (!selectedBetChoice.value) {
+    message.warning('请选择左边、右边或中间');
+    return;
+  }
+  confirmedBetChoice.value = selectedBetChoice.value;
+  showSaltcup26Modal.value = false;
+  message.success(`已保存选择: ${selectedBetChoice.value === 1 ? '左边' : selectedBetChoice.value === 2 ? '中间' : '右边'}`);
+  await batchBetSaltcup26(betInfo, confirmedBetChoice.value); 
+};
+
+const batchBetSaltcup26 = async (betInfo, choiceValue) => {
+  if (selectedTokens.value.length === 0) return
+
+  isRunning.value = true
+  shouldStop.value = false
+  logs.value = []
+
+  const totalCount = selectedActivityGoods.value.length
+  const batches = Math.floor(totalCount / 10)
+  const remainder = totalCount % 10
+
+  selectedTokens.value.forEach(id => {
+    tokenStatus.value[id] = 'waiting'
+  })
+
+  for (const tokenId of selectedTokens.value) {
+    if (shouldStop.value) break
+
+    currentRunningTokenId.value = tokenId
+    tokenStatus.value[tokenId] = 'running'
+
+    const token = tokens.value.find(t => t.id === tokenId)
+
+    try {
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== 开始批量竞猜: ${token.name} ===`, type: 'info' })
+      await ensureConnection(tokenId)
+      try{
+      //竞猜
+      await tokenStore.sendMessageWithPromise(tokenId, 'saltcup26_placebet', { matchId: betInfo.matchId, pick:choiceValue }, 5000)
+      }catch(e){
+      }
+
+      tokenStatus.value[tokenId] = 'completed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `=== ${token.name} 竞猜完成 ===`, type: 'success' })
+
+    } catch (error) {
+      console.error(error)
+      tokenStatus.value[tokenId] = 'failed'
+      addLog({ time: new Date().toLocaleTimeString(), message: `竞猜失败: ${error.message}`, type: 'error' })
+    }
+
+    await new Promise(r => setTimeout(r, 500))
+    tokenStore.closeWebSocketConnection(tokenId)
+  }
+
+  isRunning.value = false
+  currentRunningTokenId.value = null
+  message.success('批量竞猜结束')
+}
 
 const handleBuySelectedGoods = async () => {
   if (selectedActivityGoods.value.length === 0) {

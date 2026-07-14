@@ -287,6 +287,8 @@ export function registerDefaultCommands(reg) {
     //宠物抽奖
     .register("gacha_drawreward", { num: 1, isGroup: false })
     .register("autumn_useitem", { itemNum: 1 })
+    .register("saltcup26_getbetinfo", { })
+    .register("saltcup26_placebet", { matchId: "", pick: 0 })
 
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
