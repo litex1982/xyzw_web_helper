@@ -1586,11 +1586,10 @@ const batchBetSaltcup26 = async (betInfo, choiceValue) => {
     try {
       addLog({ time: new Date().toLocaleTimeString(), message: `=== 开始批量竞猜: ${token.name} ===`, type: 'info' })
       await ensureConnection(tokenId)
-      try{
+      //必须先调用这个才可以投票
+      await tokenStore.sendMessageWithPromise(tokenId, 'saltcup26_getbetinfo', {}, 10000);
       //竞猜
       await tokenStore.sendMessageWithPromise(tokenId, 'saltcup26_placebet', { matchId: betInfo.matchId, pick:choiceValue }, 5000)
-      }catch(e){
-      }
 
       tokenStatus.value[tokenId] = 'completed'
       addLog({ time: new Date().toLocaleTimeString(), message: `=== ${token.name} 竞猜完成 ===`, type: 'success' })
@@ -1601,7 +1600,7 @@ const batchBetSaltcup26 = async (betInfo, choiceValue) => {
       addLog({ time: new Date().toLocaleTimeString(), message: `竞猜失败: ${error.message}`, type: 'error' })
     }
 
-    await new Promise(r => setTimeout(r, 500))
+    await new Promise(r => setTimeout(r, 2000))
     tokenStore.closeWebSocketConnection(tokenId)
   }
 

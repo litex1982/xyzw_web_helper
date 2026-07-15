@@ -289,6 +289,7 @@ export function registerDefaultCommands(reg) {
     .register("autumn_useitem", { itemNum: 1 })
     .register("saltcup26_getbetinfo", { })
     .register("saltcup26_placebet", { matchId: "", pick: 0 })
+    .register("saltcup26_getinfo", { })
 
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
@@ -973,6 +974,7 @@ export class XyzwWebSocketClient {
       'task_claimdailyrewardresp': 'task_claimdailyreward',
       'task_claimweekrewardresp': 'task_claimweekreward',
       'gacha_drawrewardresp': 'gacha_drawreward',
+      'saltcup26_placebetresp': 'saltcup26_placebet',
 
       // 同步响应映射（优先级低）
       'syncresp': ['system_mysharecallback', 'task_claimdailypoint', 'role_commitpassword'],
