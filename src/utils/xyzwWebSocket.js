@@ -290,6 +290,11 @@ export function registerDefaultCommands(reg) {
     .register("saltcup26_getbetinfo", { })
     .register("saltcup26_placebet", { matchId: "", pick: 0 })
     .register("saltcup26_getinfo", { })
+    // 逐鹿盐山竞猜
+    .register("apex_getroleinfo")
+    .register("apex_getguesslist", { scheduleId: 0, idx: 0 })
+    .register("apex_guess", { teamId: "" })
+    .register("apex_get64oppomap", { scheduleId: 0, groupId: 0 });
 
   registry.commands.set("fight_startareaarena", (ack = 0, seq = 0, params = {}) => {
     if (params?.targetId === undefined || params?.targetId === null) {
@@ -910,6 +915,10 @@ export class XyzwWebSocketClient {
       'nightmare_getroleinforesp': 'nightmare_getroleinfo',
       'studyresp': 'study_startgame',
       'role_getroleinforesp': 'role_getroleinfo',
+      'apex_getroleinforesp': 'apex_getroleinfo',
+      'apex_getguesslistresp': 'apex_getguesslist',
+      'apex_guessresp': 'apex_guess',
+      'apex_get64oppomapresp': 'apex_get64oppomap',
       'hero_recruitresp': 'hero_recruit',
       'friend_batchresp': 'friend_batch',
       'system_claimhanguprewardresp': 'system_claimhangupreward',
